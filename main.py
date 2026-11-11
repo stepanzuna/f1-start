@@ -1,5 +1,6 @@
 import random
 
+import AppKit
 from psychopy import logging
 
 logging.console.setLevel(logging.ERROR)
@@ -14,6 +15,7 @@ LIGHT_INTERVAL = 1.0
 RESPONSE_WINDOW = 2.0
 REST_INTERVAL = 1.0
 N_STARTS = 5
+ANTICIPATION_THRESHOLD = 0.1
 
 
 def frames(seconds: float, rate: float) -> int:
@@ -47,7 +49,8 @@ def run_start(
 
     for n_on in range(1, 5):
         for _ in range(frames(LIGHT_INTERVAL, rate)):
-            keys = kb.getKeys(keyList=["space"], waitRelease=False)
+            keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
+            quit_if_escape(keys, win)
             if keys:
                 return ("jump start", None)
             draw_lamps(lamps, n_on)
@@ -55,7 +58,8 @@ def run_start(
 
     foreperiod = random.choice(FOREPERIODS)
     for _ in range(frames(foreperiod, rate)):
-        keys = kb.getKeys(keyList=["space"], waitRelease=False)
+        keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
+        quit_if_escape(keys, win)
         if keys:
             return ("jump start", None)
         draw_lamps(lamps, 5)
@@ -67,10 +71,13 @@ def run_start(
         draw_lamps(lamps, 0)
         win.flip()
 
-        keys = kb.getKeys(keyList=["space"], waitRelease=False)
+        keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
+        quit_if_escape(keys, win)
         if keys:
-            if keys[0].rt < 0.14:
+            if keys[0].rt < 0:
                 return ("jump start", None)
+            if keys[0].rt < ANTICIPATION_THRESHOLD:
+                return ("anticipation", keys[0].rt)
             else:
                 return ("go", keys[0].rt)
 
@@ -78,27 +85,54 @@ def run_start(
 
 
 def show_pause(
-    win: visual.Window, lamps: list[visual.Circle], rest_time: float, rate: float
+    win: visual.Window,
+    lamps: list[visual.Circle],
+    rest_time: float,
+    rate: float,
+    kb: keyboard.Keyboard,
 ) -> None:
     """Vykreslení pauzy mezi jednotlivými starty."""
     for _ in range(frames(rest_time, rate)):
+        quit_if_escape(kb.getKeys(keyList=["escape"], waitRelease=False), win)
         draw_lamps(lamps, 0)
         win.flip()
+
+
+def quit_if_escape(keys: list[keyboard.KeyPress], win: visual.Window) -> None:
+    """Ukončí program v libovolné chvíli při stisku esc."""
+    if any(key.name == "escape" for key in keys):
+        win.close()
+        core.quit()
 
 
 def main() -> None:
     kb = keyboard.Keyboard(backend="iohub")
 
-    win = visual.Window(size=(800, 600), color="black", units="pix")
+    screen = AppKit.NSScreen.screens()[0].frame().size
+    win = visual.Window(
+        size=(int(screen.width), int(screen.height)),
+        pos=(0, 0),
+        allowGUI=False,
+        color="black",
+        units="pix",
+    )
+    AppKit.NSApplication.sharedApplication().setPresentationOptions_(
+        AppKit.NSApplicationPresentationHideDock
+        | AppKit.NSApplicationPresentationHideMenuBar
+    )
     logging.console.setLevel(logging.WARNING)
     win.winHandle.activate()
     win.mouseVisible = False
     rate = win.getActualFrameRate()
+    if rate is None:
+        print("Nepodařilo se změřit obnovovací frekvenci.")
+        win.close()
+        core.quit()
 
     lamps = make_lamps(win)
     for _ in range(N_STARTS):
         print(run_start(win, lamps, rate, kb))
-        show_pause(win, lamps, REST_INTERVAL, rate)
+        show_pause(win, lamps, REST_INTERVAL, rate, kb)
 
     win.close()
     core.quit()
