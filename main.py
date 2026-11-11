@@ -89,7 +89,7 @@ def show_pause(
 def main() -> None:
     kb = keyboard.Keyboard(backend="iohub")
 
-    win = visual.Window(fullscr=True, color="black", units="pix")
+    win = visual.Window(size=(800, 600), color="black", units="pix")
     logging.console.setLevel(logging.WARNING)
     win.winHandle.activate()
     win.mouseVisible = False
