@@ -1,0 +1,22 @@
+{
+  // Cmd+Shift+B: spustí experiment v aplikaci Terminál (okno PsychoPy pak není schované za VS Code).
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Spustit experiment (Terminál)",
+      "type": "shell",
+      "osx": {
+        "command": "osascript",
+        "args": [
+          "-e",
+          "tell application \"Terminal\" to do script \"cd '${workspaceFolder}' && uv run main.py\"",
+          "-e",
+          "tell application \"Terminal\" to activate"
+        ]
+      },
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "silent" },
+      "problemMatcher": []
+    }
+  ]
+}

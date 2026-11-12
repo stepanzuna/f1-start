@@ -14,12 +14,13 @@ a commitnout. Každý krok má „Hotovo když“: bez splnění se nepokračuje
 
 ## Krok 0: Úklid repozitáře
 
-- [ ] smazat `hello.py`
-- [ ] `.DS_Store` do `.gitignore` a `git rm --cached .DS_Store`
-- [ ] smazat nepoužitou konstantu `N_STARTS`, doplnit docstring do `make_plan`
-- [ ] `RESPONSE_WINDOW = 1.5` (rozhodnuto, viz Parametry v `docs/experiment.md`)
-- [ ] `# noqa: E402` u importů pod nastavením logování
-- [ ] volitelně `.vscode/tasks.json` pro spuštění v Terminálu na macOS
+- [x] smazat `hello.py`
+- [x] `.DS_Store` do `.gitignore` a `git rm --cached src/.DS_Store`
+- [x] doplnit docstring do `make_plan` (smazání `N_STARTS` přesunuto do kroku 1)
+- [x] `RESPONSE_WINDOW = 1.5` (rozhodnuto, viz Parametry v `docs/experiment.md`)
+- [x] `# noqa: E402` u importů pod nastavením logování, E402 zapnuté v `pyproject.toml`
+- [x] smazat šablonu balíčku (`src/`, `[project.scripts]`, `[build-system]`)
+- [x] `.vscode/tasks.json` pro spuštění v Terminálu na macOS (`Cmd+Shift+B`)
 
 Hotovo když: `uv run ruff check .` projde bez chyb a `git status` je čistý.
 
@@ -30,6 +31,7 @@ Hotovo když: `uv run ruff check .` projde bez chyb a `git status` je čistý.
 - [ ] vlajka se kreslí od prvního snímku okna odpovědi (spolu se zhasnutím)
 - [ ] výsledky `commission` a `inhibit`, pořadí podmínek podle `docs/experiment.md`
 - [ ] `main()` prochází `make_plan()` a tiskne `foreperiod, is_nogo, result`
+- [ ] smazat konstantu `N_STARTS` (nahradí ji plán)
 
 Hotovo když: ruční test dá správný výsledek pro go se stiskem, go bez stisku, no-go se stiskem,
 no-go bez stisku a stisk před zhasnutím.
@@ -120,3 +122,5 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   PsychoPy, Windows pro sběr dat, automatické střídání pořadí bloků na každém počítači zvlášť.
 - 2026-11-12: parametry: interval lamp 1,0 s, okno odpovědi 1,5 s, vlajka 500 × 300 px,
   zpětná vazba s ms, testovací kolo 4 starty + 1 sada, Paasova škála po bloku.
+- 2026-11-12: krok 0: úklid (`hello.py`, `src/`, šablona balíčku), `RESPONSE_WINDOW = 1.5`,
+  E402 v ruffu, `tasks.json`; `make_flag`, `make_plan`, `jump_start`, lampy na y = −90.

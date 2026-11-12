@@ -5,17 +5,22 @@ from psychopy import logging
 
 logging.console.setLevel(logging.ERROR)
 
-from psychopy import core, visual
-from psychopy.hardware import keyboard
+from psychopy import core, visual  # noqa: E402
+from psychopy.hardware import keyboard  # noqa: E402
 
 OFF = "#333333"
 ON = "red"
+FLAG_COLOR = "#EF9F27"
+
 FOREPERIODS = [0.5, 1.25, 2.0, 2.75]
 LIGHT_INTERVAL = 1.0
-RESPONSE_WINDOW = 2.0
+RESPONSE_WINDOW = 1.5
 REST_INTERVAL = 1.0
-N_STARTS = 5
 ANTICIPATION_THRESHOLD = 0.1
+
+N_STARTS = 5
+GO_PER_FOREPERIOD = 3
+NOGO_PER_FOREPERIOD = 1
 
 
 def frames(seconds: float, rate: float) -> int:
@@ -29,7 +34,7 @@ def make_lamps(win: visual.Window) -> list[visual.Circle]:
     for i in range(5):
         x = -240 + i * 120
         lamps.append(
-            visual.Circle(win, radius=40, pos=(x, 0), fillColor=OFF, lineColor=None)
+            visual.Circle(win, radius=40, pos=(x, -90), fillColor=OFF, lineColor=None)
         )
     return lamps
 
@@ -39,6 +44,13 @@ def draw_lamps(lamps: list[visual.Circle], n_on: int) -> None:
     for i, lamp in enumerate(lamps):
         lamp.fillColor = ON if i < n_on else OFF
         lamp.draw()
+
+
+def make_flag(win: visual.Window) -> visual.Rect:
+    """Vytvoří obdélníkovou vlajku nad semaforem."""
+    return visual.Rect(
+        win, width=500, height=300, pos=(0, 180), fillColor=FLAG_COLOR, lineColor=None
+    )
 
 
 def run_start(
@@ -52,7 +64,7 @@ def run_start(
             keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
             quit_if_escape(keys, win)
             if keys:
-                return ("jump start", None)
+                return ("jump_start", None)
             draw_lamps(lamps, n_on)
             win.flip()
 
@@ -61,7 +73,7 @@ def run_start(
         keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
         quit_if_escape(keys, win)
         if keys:
-            return ("jump start", None)
+            return ("jump_start", None)
         draw_lamps(lamps, 5)
         win.flip()
 
@@ -75,7 +87,7 @@ def run_start(
         quit_if_escape(keys, win)
         if keys:
             if keys[0].rt < 0:
-                return ("jump start", None)
+                return ("jump_start", None)
             if keys[0].rt < ANTICIPATION_THRESHOLD:
                 return ("anticipation", keys[0].rt)
             else:
@@ -103,6 +115,18 @@ def quit_if_escape(keys: list[keyboard.KeyPress], win: visual.Window) -> None:
     if any(key.name == "escape" for key in keys):
         win.close()
         core.quit()
+
+
+def make_plan() -> list[tuple[float, bool]]:
+    """Vytvoří zamíchaný plán startů jako dvojice (prodleva, je no-go)."""
+    plan = []
+    for foreperiod in FOREPERIODS:
+        for _ in range(GO_PER_FOREPERIOD):
+            plan.append((foreperiod, False))
+        for _ in range(NOGO_PER_FOREPERIOD):
+            plan.append((foreperiod, True))
+    random.shuffle(plan)
+    return plan
 
 
 def main() -> None:
