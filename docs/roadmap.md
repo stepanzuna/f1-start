@@ -127,7 +127,7 @@ a dvě dokončená sezení po sobě dostanou opačné pořadí bloků.
 - [x] texty podle `docs/experiment.md`, stejné ve všech podmínkách, ve zvoleném jazyce
       (`feedback_text` v `logic.py`, hláška nad lampami)
 - [x] simulace uloží obrázek první pauzy po každém výsledku do `data/sim/…_screens/`
-- [ ] (ručně) hlášky česky i anglicky, čitelnost a umístění na celé obrazovce
+- [x] (ručně) hlášky česky i anglicky, čitelnost a umístění na celé obrazovce
 
 Hotovo když: po každém startu se zobrazí správná hláška.
 
@@ -223,3 +223,6 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   fantomu do `data/test/`, EN; `zkouska1` dvakrát dokončeno → ABBA, pak BAAB, třetí sezení
   ukázalo ABBA podle 2 sezení. Testovací soubory přesunuty do `data/test/`. Neověřeno ručně:
   přepsání pořadí klávesou A/B (pokryto testem).
+- 2026-11-13: krok 5 hotový: hláška v pauze podle výsledku ve zvoleném jazyce (`feedback_text`),
+  nad lampami (y = 60 px, písmo 60 px). Ruční test v češtině (8 startů, 4 typy hlášek) bez
+  vypadlých snímků, uživatel bez připomínek; angličtina ověřena obrázky ze simulace.
