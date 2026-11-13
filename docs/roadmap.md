@@ -63,14 +63,14 @@ a 5 testovacích startů proběhne bez vypadlých snímků.
 - [x] složka `data/` (v `.gitignore`), název souboru podle `docs/experiment.md`
 - [x] sloupce CSV podle `docs/experiment.md`, `rt_ms` zaokrouhlené, `flush()` po každém zápisu
 - [x] počítání vypadlých snímků na start
-- [ ] kontrola existence souboru **před** otevřením okna (dnes druhé spuštění ve stejné minutě
+- [x] kontrola existence souboru **před** otevřením okna (dnes druhé spuštění ve stejné minutě
       spadne s `FileExistsError` až s otevřeným oknem)
-- [ ] `…_meta.json` se vším ze specifikace: zápis hned po změření frekvence s `aborted = true`,
+- [x] `…_meta.json` se vším ze specifikace: zápis hned po změření frekvence s `aborted = true`,
       přepis na konci sezení (`aborted = false`, konec, vypadlé snímky celkem)
-- [ ] log `…_log.txt` s varováními PsychoPy
-- [ ] `check_data.py`: kontrola CSV a meta jednoho sezení (sloupce, hodnoty `outcome`, `rt_ms`
+- [x] log `…_log.txt` s varováními PsychoPy (limit varování o vypadlých snímcích zvýšen z 5)
+- [x] `check_data.py`: kontrola CSV a meta jednoho sezení (sloupce, hodnoty `outcome`, `rt_ms`
       jen u výsledků s reakcí, počet řádků proti plánu, vypadlé snímky, `aborted`)
-- [ ] `tests/test_rules.py`: zakázaná volání a importy ve zdrojácích, zámek schválených parametrů
+- [x] `tests/test_rules.py`: zakázaná volání a importy ve zdrojácích, zámek schválených parametrů
 - [ ] (ručně) celý běh a jeden běh přerušený Escapem
 
 Hotovo když: po běhu existuje CSV, meta i log, `check_data.py` je projde bez chyb, Escape
@@ -130,6 +130,8 @@ Hotovo když: celá sada proběhne a v CSV jsou 3 řádky se správnými čísli
 
 - [ ] plán na podmínku (9 go + 3 no-go na prodlevu), max 2 no-go za sebou
 - [ ] rozdělení do bloků ABBA/BAAB, `random.Random(seed)`, seed do metadat
+- [ ] ostré starty mají `block` 1–4 (jinak by `make_row` dal `phase = "practice"`),
+      `set_index` a `start_in_set` skutečné hodnoty; kontroly obojího doplnit do `check_data.py`
 - [ ] testy v `tests/` přes pytest: počty, poměr, pravidlo max 2 no-go, stejný seed = stejný plán
 
 Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocích.

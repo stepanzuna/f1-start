@@ -1,29 +1,52 @@
+import csv
 import os
+import platform
 import sys
+from datetime import datetime
+from pathlib import Path
 
+import psychopy
 from psychopy import logging
 
 from config import (
     ANTICIPATION_THRESHOLD,
+    CSV_COLUMNS,
+    DATA_DIR_NAME,
+    DROPPED_FRAME_WARNINGS_MAX,
     EXPECTED_FRAME_RATE,
     FLAG_COLOR,
     FLAG_HEIGHT,
     FLAG_POS,
     FLAG_WIDTH,
     FRAME_RATE_TOLERANCE,
+    KEYBOARD_BACKEND,
     LAMP_RADIUS,
     LAMP_SPACING,
     LAMP_Y,
     LIGHT_INTERVAL,
+    LOG_SUFFIX,
+    META_SUFFIX,
     N_LAMPS,
     OFF,
     ON,
+    PLACEHOLDER_NICK,
     RESPONSE_WINDOW,
     REST_INTERVAL,
     WINDOW_MODE,
     WINDOW_MODES,
 )
-from logic import Start, make_plan
+from logic import (
+    Start,
+    companion_path,
+    finish_meta,
+    git_commit,
+    machine_code,
+    make_data_path,
+    make_meta,
+    make_plan,
+    make_row,
+    write_meta,
+)
 
 logging.console.setLevel(logging.ERROR)
 
@@ -200,35 +223,105 @@ def measure_frame_rate(win: visual.Window) -> float:
     return rate
 
 
+def describe_environment(project_dir: Path) -> dict[str, str]:
+    """Popíše systém a verze programů pro metadata sezení."""
+    return {
+        "platform": platform.platform(),
+        "python_version": platform.python_version(),
+        "psychopy_version": psychopy.__version__,
+        "git_commit": git_commit(project_dir),
+    }
+
+
 def main() -> None:
     exit_if_hidden_launch(WINDOW_MODE)
-    kb = keyboard.Keyboard(backend="iohub")
+    machine = machine_code(sys.platform)
+    nick = PLACEHOLDER_NICK
+    started_at = datetime.now().astimezone()
+    project_dir = Path(__file__).parent
+
+    data_dir = project_dir / DATA_DIR_NAME
+    data_dir.mkdir(exist_ok=True)
+    data_path = make_data_path(data_dir, nick, machine, started_at)
+    if data_path.exists():
+        sys.exit(
+            f"Soubor {data_path.name} už existuje (stejný nick ve stejné minutě).\n"
+            "Počkej minutu a spusť experiment znovu."
+        )
+    meta_path = companion_path(data_path, META_SUFFIX)
+    log_path = companion_path(data_path, LOG_SUFFIX)
+    logging.LogFile(str(log_path), level=logging.WARNING, filemode="w")
+    kb = keyboard.Keyboard(backend=KEYBOARD_BACKEND)
+    if kb.getBackend() != KEYBOARD_BACKEND:
+        sys.exit(
+            f"Klávesnice běží přes {kb.getBackend()!r} místo {KEYBOARD_BACKEND!r}, "
+            "měření by nebylo srovnatelné."
+        )
+    # Bez toho PsychoPy po 5 vypadlých snímcích přestane varovat a log by je nezachytil.
+    visual.window.reportNDroppedFrames = DROPPED_FRAME_WARNINGS_MAX
 
     win = open_window(WINDOW_MODE)
     logging.console.setLevel(logging.WARNING)
     rate = measure_frame_rate(win)
+    window_size = (int(win.size[0]), int(win.size[1]))
     print(
-        f"systém {sys.platform}, režim {WINDOW_MODE}, velikost okna {win.size} px, "
+        f"systém {sys.platform}, režim {WINDOW_MODE}, velikost okna {window_size} px, "
         f"frekvence {rate:.2f} Hz",
         flush=True,
     )
+    print(f"data: {data_path}", flush=True)
+
+    plan = make_plan()
+    meta = make_meta(
+        participant=nick,
+        machine=machine,
+        started_at=started_at,
+        environment=describe_environment(project_dir),
+        frame_rate=float(rate),
+        window_mode=WINDOW_MODE,
+        window_size=window_size,
+        keyboard_backend=kb.getBackend(),
+        planned_starts=len(plan),
+        simulated=False,
+    )
+    write_meta(meta_path, meta)
 
     lamps = make_lamps(win)
     flag = make_flag(win)
     win.recordFrameIntervals = True
-    for start in make_plan():
-        dropped_before = win.nDroppedFrames
-        outcome, rt = run_start(win, lamps, rate, kb, flag, start)
-        dropped = win.nDroppedFrames - dropped_before
-        print(
-            start.foreperiod,
-            start.is_nogo,
-            outcome,
-            rt,
-            f"vypadlé snímky: {dropped} (celkem {win.nDroppedFrames})",
-        )
-        show_pause(win, lamps, REST_INTERVAL, rate, kb)
+    with data_path.open("x", newline="", encoding="utf-8") as data_file:
+        writer = csv.DictWriter(data_file, fieldnames=CSV_COLUMNS)
+        writer.writeheader()
+        for trial_index, start in enumerate(plan, start=1):
+            dropped_before = win.nDroppedFrames
+            outcome, rt = run_start(win, lamps, rate, kb, flag, start)
+            dropped = win.nDroppedFrames - dropped_before
+            row = make_row(
+                participant=nick,
+                machine=machine,
+                start=start,
+                trial_index=trial_index,
+                outcome=outcome,
+                rt=rt,
+                dropped_frames=dropped,
+                written_at=datetime.now().astimezone(),
+            )
+            writer.writerow(row)
+            data_file.flush()
+            logging.flush()
+            print(
+                trial_index,
+                start.foreperiod,
+                start.is_nogo,
+                outcome,
+                row["rt_ms"],
+                f"vypadlé snímky: {dropped}",
+            )
+            show_pause(win, lamps, REST_INTERVAL, rate, kb)
 
+    meta = finish_meta(meta, datetime.now().astimezone(), win.nDroppedFrames)
+    write_meta(meta_path, meta)
+    print(f"Sezení dokončeno, vypadlé snímky celkem: {win.nDroppedFrames}", flush=True)
     win.close()
     core.quit()
 

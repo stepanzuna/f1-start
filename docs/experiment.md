@@ -126,7 +126,9 @@ git commit (`git rev-parse --short HEAD`), začátek a konec sezení, `aborted` 
 pořadí bloků, seed, naměřená frekvence, režim okna, backend klávesnice,
 kopie všech časových konstant, hodnocení námahy po blocích, vypadlé snímky celkem.
 Doplněno 13. 11. 2026: skutečná velikost okna v px, `simulated` (režim simulace),
-u git commitu přípona `-dirty`, když běžel kód s necommitnutými změnami.
+`planned_starts` (počet startů v plánu sezení), u git commitu přípona `-dirty`, když běžel
+kód s necommitnutými změnami. `keyboard_backend` je backend, který PsychoPy skutečně použil;
+když to není `iohub`, program skončí ještě před otevřením okna.
 
 Meta se zapíše hned po změření frekvence s `aborted = true` a `ended_at = null`. Na řádném konci
 sezení se přepíše (`aborted = false`, konec, vypadlé snímky celkem). Přerušené sezení tak má
@@ -146,6 +148,9 @@ přesune do příslušné sekce výše a tady se smaže.
 **Krok 4 (úvodní obrazovka)**
 1. Nick už v `data/` existuje: *návrh:* hláška „Nick už existuje. Enter = přesto pokračovat,
    Backspace = opravit“. Nový soubor má jiný čas v názvu, nic se nepřepíše.
+1b. Testovací běhy během vývoje (dnes zástupný nick `test`) by se počítaly do střídání pořadí
+   bloků. *Návrh:* nick začínající `test` ukládat do `data/test/` a do střídání nepočítat
+   (stejně jako `pilot`). Do té doby: před sběrem dat smazat `data/test_*`.
 
 **Krok 6 (paměťová zátěž)**
 2. Jak se generují číslice: *návrh:* náhodně 0–9 **bez opakování** v rámci sady, nula smí být

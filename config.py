@@ -29,6 +29,47 @@ RESPONSE_WINDOW = 1.5
 REST_INTERVAL = 1.0
 ANTICIPATION_THRESHOLD = 0.1
 
+# Výsledky startu (docs/experiment.md, „Výsledky startu“); jump_start může nastat u obou typů
+GO_OUTCOMES = ("jump_start", "anticipation", "go", "omission")
+NOGO_OUTCOMES = ("jump_start", "commission", "inhibit")
+OUTCOMES_WITH_RT = ("anticipation", "go", "commission")
+
+# Design (docs/experiment.md, „Design“): zátěž a počet ostrých bloků (block 0 = testovací kolo)
+LOADS = ("none", "low", "high")
+N_BLOCKS = 4
+
 # Plán startů
 GO_PER_FOREPERIOD = 3
 NOGO_PER_FOREPERIOD = 1
+
+# Klávesnice (stejný backend na macOS i Windows, viz CLAUDE.md)
+KEYBOARD_BACKEND = "iohub"
+
+# Kolik varování o vypadlých snímcích PsychoPy zapíše do logu (výchozích 5 je na sezení málo)
+DROPPED_FRAME_WARNINGS_MAX = 100_000
+
+# Data
+DATA_DIR_NAME = "data"
+META_SUFFIX = "_meta.json"
+LOG_SUFFIX = "_log.txt"
+PLACEHOLDER_NICK = "test"  # do kroku 4 (zadání nicku v okně)
+MACHINE_CODES = {"darwin": "mac", "win32": "win"}
+CSV_COLUMNS = (
+    "participant",
+    "machine",
+    "phase",
+    "block",
+    "load",
+    "set_index",
+    "start_in_set",
+    "trial_index",
+    "foreperiod_s",
+    "is_nogo",
+    "outcome",
+    "rt_ms",
+    "digits_shown",
+    "digits_typed",
+    "recall_correct",
+    "dropped_frames",
+    "timestamp",
+)
