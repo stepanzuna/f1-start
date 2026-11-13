@@ -18,7 +18,6 @@ RESPONSE_WINDOW = 1.5
 REST_INTERVAL = 1.0
 ANTICIPATION_THRESHOLD = 0.1
 
-N_STARTS = 5
 GO_PER_FOREPERIOD = 3
 NOGO_PER_FOREPERIOD = 1
 
@@ -54,9 +53,15 @@ def make_flag(win: visual.Window) -> visual.Rect:
 
 
 def run_start(
-    win: visual.Window, lamps: list[visual.Circle], rate: float, kb: keyboard.Keyboard
+    win: visual.Window,
+    lamps: list[visual.Circle],
+    rate: float,
+    kb: keyboard.Keyboard,
+    flag: visual.Rect,
+    foreperiod: float,
+    is_nogo: bool,
 ) -> tuple[str, float | None]:
-    """Jeden F1 start: rozsvěcování, prodleva, zhasnutí."""
+    """Jeden F1 start: rozsvěcování, prodleva, zhasnutí, u no-go se žlutou vlajkou."""
     kb.clearEvents()
 
     for n_on in range(1, 5):
@@ -68,7 +73,6 @@ def run_start(
             draw_lamps(lamps, n_on)
             win.flip()
 
-    foreperiod = random.choice(FOREPERIODS)
     for _ in range(frames(foreperiod, rate)):
         keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
         quit_if_escape(keys, win)
@@ -81,6 +85,8 @@ def run_start(
         if i == 0:
             win.callOnFlip(kb.clock.reset)
         draw_lamps(lamps, 0)
+        if is_nogo:
+            flag.draw()
         win.flip()
 
         keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
@@ -88,11 +94,14 @@ def run_start(
         if keys:
             if keys[0].rt < 0:
                 return ("jump_start", None)
+            if is_nogo:
+                return ("commission", keys[0].rt)
             if keys[0].rt < ANTICIPATION_THRESHOLD:
                 return ("anticipation", keys[0].rt)
-            else:
-                return ("go", keys[0].rt)
+            return ("go", keys[0].rt)
 
+    if is_nogo:
+        return ("inhibit", None)
     return ("omission", None)
 
 
@@ -154,8 +163,10 @@ def main() -> None:
         core.quit()
 
     lamps = make_lamps(win)
-    for _ in range(N_STARTS):
-        print(run_start(win, lamps, rate, kb))
+    flag = make_flag(win)
+    for foreperiod, is_nogo in make_plan():
+        outcome, rt = run_start(win, lamps, rate, kb, flag, foreperiod, is_nogo)
+        print(foreperiod, is_nogo, outcome, rt)
         show_pause(win, lamps, REST_INTERVAL, rate, kb)
 
     win.close()

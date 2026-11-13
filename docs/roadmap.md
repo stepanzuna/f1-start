@@ -26,12 +26,12 @@ Hotovo když: `uv run ruff check .` projde bez chyb a `git status` je čistý.
 
 ## Krok 1: Zapojit no-go start
 
-- [ ] hlavička `run_start(win, lamps, rate, kb, flag, foreperiod, is_nogo)` s typy
-- [ ] smazat `random.choice` z `run_start`, prodleva přichází z plánu
-- [ ] vlajka se kreslí od prvního snímku okna odpovědi (spolu se zhasnutím)
-- [ ] výsledky `commission` a `inhibit`, pořadí podmínek podle `docs/experiment.md`
-- [ ] `main()` prochází `make_plan()` a tiskne `foreperiod, is_nogo, result`
-- [ ] smazat konstantu `N_STARTS` (nahradí ji plán)
+- [x] hlavička `run_start(win, lamps, rate, kb, flag, foreperiod, is_nogo)` s typy
+- [x] smazat `random.choice` z `run_start`, prodleva přichází z plánu
+- [x] vlajka se kreslí od prvního snímku okna odpovědi (spolu se zhasnutím)
+- [x] výsledky `commission` a `inhibit`, pořadí podmínek podle `docs/experiment.md`
+- [x] `main()` prochází `make_plan()` a tiskne `foreperiod, is_nogo, result`
+- [x] smazat konstantu `N_STARTS` (nahradí ji plán)
 
 Hotovo když: ruční test dá správný výsledek pro go se stiskem, go bez stisku, no-go se stiskem,
 no-go bez stisku a stisk před zhasnutím.
@@ -124,3 +124,5 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   zpětná vazba s ms, testovací kolo 4 starty + 1 sada, Paasova škála po bloku.
 - 2026-11-12: krok 0: úklid (`hello.py`, `src/`, šablona balíčku), `RESPONSE_WINDOW = 1.5`,
   E402 v ruffu, `tasks.json`; `make_flag`, `make_plan`, `jump_start`, lampy na y = −90.
+- 2026-11-12: krok 1: no-go start se žlutou vlajkou, výsledky `commission` a `inhibit`,
+  `main()` prochází `make_plan()`; ruční test ověřil všech 5 případů.
