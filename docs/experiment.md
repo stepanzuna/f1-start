@@ -27,7 +27,9 @@ a časovou přípravu na očekávaný podnět?
 
 ## Průběh jedné sady
 
-1. Zobrazení číslic na 2 s, pak 0,5 s prázdná obrazovka.
+1. Zobrazení číslic na 4 s (`DIGITS_DURATION`, stejně pro 2 i 6 číslic), pak 0,5 s prázdná
+   obrazovka. Změněno z 2 s 13. 11. 2026 po ručním testu: 6 číslic za 2 s nešlo zapamatovat.
+   Stejný čas pro obě zátěže, aby se podmínky lišily jen počtem číslic.
 2. Třikrát start:
    - lampy 1–4 se rozsvěcují po 1,0 s (`LIGHT_INTERVAL`),
    - pak se rozsvítí lampa 5 a svítí **přesně po dobu prodlevy** (`FOREPERIODS` = 0.5 / 1.25 / 2.0 / 2.75 s),
@@ -256,7 +258,10 @@ Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do přís
 | vlajka | 500 × 300 px, střed (0, 180); lampy poloměr 40 px na y = −90, rozestup 120 px |
 | zpětná vazba | reakční čas v ms a hlášky o chybách, stejná ve všech podmínkách |
 | testovací kolo | 4 starty bez číslic + 1 sada s 2 číslicemi |
+| `DIGITS_DURATION` | 4,0 s zobrazení číslic, stejně pro obě zátěže (změněno 13. 11. 2026 z 2 s) |
+| `DIGITS_BLANK` | 0,5 s prázdná obrazovka po číslicích |
 | hodnocení námahy | Paasova škála 1–9 po každém bloku |
 
-Odhad délky: ostrá část (32 sad) asi 15 minut, celé sezení s instrukcemi a testovacím kolem
+Odhad délky: simulace ostré části s 2 s číslicemi trvala 11:41 min (13. 11. 2026); se 4 s
+číslicemi (+64 s) a psaním odpovědí účastníkem asi 15–16 minut, celé sezení s instrukcemi a testovacím kolem
 asi 20 minut. Při jakékoli změně časů odhad přepočítej.

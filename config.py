@@ -28,7 +28,7 @@ LIGHT_INTERVAL = 1.0
 RESPONSE_WINDOW = 1.5
 REST_INTERVAL = 1.0
 ANTICIPATION_THRESHOLD = 0.1
-DIGITS_DURATION = 2.0  # zobrazení číslic na začátku sady
+DIGITS_DURATION = 4.0  # zobrazení číslic na začátku sady (stejně pro 2 i 6 číslic)
 DIGITS_BLANK = 0.5  # prázdná obrazovka po číslicích
 
 # Výsledky startu (docs/experiment.md, „Výsledky startu“); jump_start může nastat u obou typů

@@ -23,7 +23,7 @@ APPROVED_PARAMETERS = {
     "RESPONSE_WINDOW": 1.5,
     "REST_INTERVAL": 1.0,
     "ANTICIPATION_THRESHOLD": 0.1,
-    "DIGITS_DURATION": 2.0,
+    "DIGITS_DURATION": 4.0,
     "DIGITS_BLANK": 0.5,
     "STARTS_PER_SET": 3,
     "DIGITS_PER_LOAD": {"none": 0, "low": 2, "high": 6},

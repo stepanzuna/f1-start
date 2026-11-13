@@ -153,7 +153,7 @@ Hotovo když: celá sada proběhne a v CSV jsou 3 řádky se správnými čísli
 - [x] nahradit dočasné `assign_sets` (krok 6) a `random.Random()` bez seedu v `main.py`
 - [x] testy v `tests/` přes pytest: počty, poměr, pravidlo max 2 no-go, stejný seed = stejný plán
 - [x] zkrácený plán `--short` pro testy (12 startů), `short` v meta
-- [ ] (ručně) zkrácené sezení přes celou obrazovku, přechody mezi bloky
+- [x] (ručně) zkrácené sezení přes celou obrazovku, přechody mezi bloky
 
 Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocích.
 
@@ -241,3 +241,11 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   ve slovníku podle (blok, sada). Dočasně do kroku 7 sady se střídající zátěží. Ruční test: 3 celé
   sady (2 a 6 číslic) správně uložené, Escape ve 4. sadě ji nezapsal, bez vypadlých snímků.
   Simulace s Escapem uprostřed sady ověřena.
+- 2026-11-13: krok 7 hotový: plán 96 startů ve 4 blocích ABBA/BAAB ze seedu (9 go + 3 no-go
+  na prodlevu a podmínku, blok 6× každá prodleva s 2×2 a 2×1 no-go, max 2 no-go za sebou,
+  8 sad po 3), seed a `short` v meta, `check_data.py` přegeneruje plán a porovná s CSV,
+  zkrácený plán `--short` jen pro simulaci a `test…`. Simulace celého sezení 11:41 min.
+  Ruční test: zkrácené sezení v pořádku, `--short` s ostrým nickem odmítnut.
+- 2026-11-13: parametr změněn na žádost uživatele po ručním testu: `DIGITS_DURATION` 2 s → 4 s
+  pro obě zátěže (6 číslic za 2 s nešlo zapamatovat; stejný čas, aby se podmínky lišily jen
+  počtem číslic). Odhad délky ostré části asi 15–16 min.
