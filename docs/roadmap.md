@@ -138,7 +138,7 @@ Hotovo když: po každém startu se zobrazí správná hláška.
 - [x] sloupce `digits_shown`, `digits_typed`, `recall_correct`, zápis CSV po sadě
 - [x] dočasně do kroku 7: testovací plán rozdělený do sad, zátěž se střídá nízká/vysoká
 - [x] simulace píše odpovědi (správně, špatně, opraveno, kratší), `check_data.py` je ověří
-- [ ] (ručně) číslice a vybavení na celé obrazovce, česká klávesnice
+- [x] (ručně) číslice a vybavení na celé obrazovce, česká klávesnice
 
 Hotovo když: celá sada proběhne a v CSV jsou 3 řádky se správnými číslicemi.
 
@@ -234,3 +234,8 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
 - 2026-11-13: krok 5 hotový: hláška v pauze podle výsledku ve zvoleném jazyce (`feedback_text`),
   nad lampami (y = 60 px, písmo 60 px). Ruční test v češtině (8 startů, 4 typy hlášek) bez
   vypadlých snímků, uživatel bez připomínek; angličtina ověřena obrázky ze simulace.
+- 2026-11-13: krok 6 hotový: sada = číslice 2 s + 0,5 s prázdno, 3 starty, vybavení (jen číslice,
+  česká horní řada i Caps Lock, Backspace, Enter i u kratší odpovědi), zápis CSV po sadě, číslice
+  ve slovníku podle (blok, sada). Dočasně do kroku 7 sady se střídající zátěží. Ruční test: 3 celé
+  sady (2 a 6 číslic) správně uložené, Escape ve 4. sadě ji nezapsal, bez vypadlých snímků.
+  Simulace s Escapem uprostřed sady ověřena.
