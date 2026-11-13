@@ -17,6 +17,23 @@
       "group": { "kind": "build", "isDefault": true },
       "presentation": { "reveal": "silent" },
       "problemMatcher": []
+    },
+    {
+      // Cmd+Shift+P → Tasks: Run Task → tato úloha. Zkrácený plán (12 startů), nick musí začínat „test“.
+      "label": "Zkrácený test (Terminál, --short)",
+      "type": "shell",
+      "osx": {
+        "command": "osascript",
+        "args": [
+          "-e",
+          "tell application \"Terminal\" to do script \"cd '${workspaceFolder}' && uv run main.py --short\"",
+          "-e",
+          "tell application \"Terminal\" to activate"
+        ]
+      },
+      "group": "build",
+      "presentation": { "reveal": "silent" },
+      "problemMatcher": []
     }
   ]
 }

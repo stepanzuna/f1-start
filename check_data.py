@@ -6,6 +6,7 @@ varování (např. vypadlé snímky) kód nemění.
 """
 
 import csv
+import itertools
 import json
 import sys
 from collections import Counter
@@ -40,10 +41,12 @@ from config import (
     WINDOW_MODES,
 )
 from logic import (
+    build_session,
     companion_path,
     expected_outcome,
     is_valid_nick,
     session_data_dir,
+    short_plan_allowed,
     sim_recall_answer,
 )
 
@@ -61,6 +64,7 @@ REQUIRED_META_KEYS = (
     "block_order",
     "language",
     "seed",
+    "short",
     "effort_ratings",
     "planned_starts",
     "frame_rate_hz",
@@ -274,6 +278,65 @@ def check_simulation(meta: dict[str, object], rows: list[dict[str, str]]) -> lis
     return problems
 
 
+def check_plan(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]:
+    """Přegeneruje plán ze seedu, pořadí bloků a zkrácení v meta a porovná ho s CSV.
+
+    Pozná rozjetí dat a plánu (jiné prodlevy, no-go, zátěž, sady i číslice) a zkrácený
+    plán u ostrého sezení.
+    """
+    if (
+        not isinstance(meta.get("seed"), int)
+        or meta.get("block_order") not in BLOCK_ORDERS
+    ):
+        return ["meta: chybí seed nebo platné pořadí bloků, plán nejde přegenerovat"]
+    short = bool(meta.get("short"))
+    plan, digits = build_session(str(meta["block_order"]), int(meta["seed"]), short)
+    rows = [row for row in rows if row["block"] != "0"]  # testovací kolo není v plánu
+    problems = []
+    if meta.get("planned_starts") != len(plan):
+        problems.append(
+            f"meta: planned_starts {meta.get('planned_starts')} ≠ plán {len(plan)}"
+        )
+    nick = str(meta.get("participant", ""))
+    if short and not short_plan_allowed(bool(meta.get("simulated")), nick):
+        problems.append("zkrácený plán (--short) u ostrého nebo pilotního sezení")
+    for index, (row, start) in enumerate(zip(rows, plan, strict=False), start=1):
+        expected = {
+            "foreperiod_s": start.foreperiod,
+            "is_nogo": str(start.is_nogo),
+            "load": start.load,
+            "block": str(start.block),
+            "set_index": str(start.set_index),
+            "start_in_set": str(start.start_in_set),
+            "digits_shown": digits[(start.block, start.set_index)],
+        }
+        actual = {key: row[key] for key in expected}
+        actual["foreperiod_s"] = parse_float(row["foreperiod_s"])
+        differs = [key for key in expected if actual[key] != expected[key]]
+        if differs:
+            problems.append(
+                f"řádek {index}: nesedí s plánem ze seedu ({', '.join(differs)})"
+            )
+    return problems
+
+
+def check_sets(rows: list[dict[str, str]]) -> list[str]:
+    """Sady ostré části bez ohledu na seed: 3 řádky, start_in_set 1–3, jedna zátěž."""
+    problems = []
+    main_rows = [row for row in rows if row["block"] != "0"]
+    for key, group in itertools.groupby(
+        main_rows, key=lambda r: (r["block"], r["set_index"])
+    ):
+        group = list(group)
+        positions = [row["start_in_set"] for row in group]
+        expected = [str(i) for i in range(1, STARTS_PER_SET + 1)]
+        if positions != expected:
+            problems.append(f"sada {key}: start_in_set {positions}, čekáno {expected}")
+        if len({row["load"] for row in group}) != 1:
+            problems.append(f"sada {key}: víc zátěží v jedné sadě")
+    return problems
+
+
 def check_digits(rows: list[dict[str, str]], simulated: bool) -> list[str]:
     """Ověří sloupce s číslicemi: počet podle zátěže, odpověď, recall_correct, shodu v sadě.
 
@@ -384,6 +447,8 @@ def check_session(csv_path: Path) -> tuple[str, list[str], list[str]]:
     problems.extend(check_files(csv_path, meta))
     problems.extend(check_simulation(meta, rows))
     problems.extend(check_digits(rows, bool(meta.get("simulated"))))
+    problems.extend(check_plan(meta, rows))
+    problems.extend(check_sets(rows))
     return summarize(meta, rows), problems, dropped_frame_warnings(rows)
 
 

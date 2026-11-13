@@ -49,13 +49,18 @@ DIGITS_HEIGHT = 80  # px
 # (i velká písmena při Caps Lock). „+“ je i plus na numerické klávesnici (iohub obojí hlásí
 # jako num_add), překlep tam zapíše 1; účastník ho vidí a může smazat.
 CZECH_DIGIT_ROW = dict(zip("+ěščřžýáíé", "1234567890", strict=True))
-# Do kroku 7 (plán sezení): sady se střídají nízká/vysoká zátěž, vše v bloku 1
-PLACEHOLDER_LOADS = ("low", "high")
-PLACEHOLDER_BLOCK = 1
 
 # Plán startů
-GO_PER_FOREPERIOD = 3
-NOGO_PER_FOREPERIOD = 1
+# Na podmínku a prodlevu (docs/experiment.md, „Plán startů“); podmínka = 2 bloky
+GO_PER_FOREPERIOD = 9
+NOGO_PER_FOREPERIOD = 3
+MAX_NOGO_RUN = 2  # nejvýš tolik no-go startů za sebou v bloku
+MAX_SHUFFLES = 10_000  # pojistka: pravidlo splní asi 80 % zamíchání, víc pokusů = chyba
+BLOCK_LOADS = {"A": "low", "B": "high"}  # písmena v pořadí bloků ABBA / BAAB
+SEED_MAX = 2**31  # seed sezení je náhodné celé číslo 0 … SEED_MAX - 1
+# Zkrácený plán pro testy (uv run main.py --short): z každého bloku jen první sady
+SHORT_FLAG = "--short"
+SHORT_SETS_PER_BLOCK = 1
 
 # Klávesnice (stejný backend na macOS i Windows, viz CLAUDE.md)
 KEYBOARD_BACKEND = "iohub"

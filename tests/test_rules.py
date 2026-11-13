@@ -36,9 +36,10 @@ APPROVED_PARAMETERS = {
     "FLAG_POS": (0, 180),
     "EXPECTED_FRAME_RATE": 60,
     "FRAME_RATE_TOLERANCE": 1.0,
-    # Zkrácený plán pro testování; ostré hodnoty 9 a 3 nastaví krok 7.
-    "GO_PER_FOREPERIOD": 3,
-    "NOGO_PER_FOREPERIOD": 1,
+    "GO_PER_FOREPERIOD": 9,
+    "NOGO_PER_FOREPERIOD": 3,
+    "MAX_NOGO_RUN": 2,
+    "BLOCK_LOADS": {"A": "low", "B": "high"},
 }
 
 

@@ -156,6 +156,9 @@ def test_count_completed_sessions(tmp_path: Path) -> None:
     write_meta_file(
         tmp_path / "s_mac_2026-11-13_0903_meta.json", **meta | {"simulated": True}
     )
+    write_meta_file(
+        tmp_path / "z_mac_2026-11-13_0903_meta.json", **meta | {"short": True}
+    )
     write_meta_file(tmp_path / "pilot" / "pilot1_mac_2026-11-13_0903_meta.json", **meta)
     write_meta_file(tmp_path / "sim" / "sim_mac_2026-11-13_0904_meta.json", **meta)
     (tmp_path / "d_mac_2026-11-13_0905_meta.json").write_text(

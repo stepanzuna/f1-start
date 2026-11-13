@@ -7,17 +7,15 @@ import pytest
 
 from config import (
     DIGITS_PER_LOAD,
-    PLACEHOLDER_LOADS,
     SIM_INTRO_KEYS,
     SIM_RECALL_CYCLE,
     STARTS_PER_SET,
 )
 from logic import (
-    assign_sets,
+    build_session,
     edit_recall,
     group_sets,
     make_digits,
-    make_plan,
     make_row,
     make_set_digits,
     make_sim_typed_keys,
@@ -25,26 +23,21 @@ from logic import (
     sim_recall_keys,
 )
 
+
+def sample_plan() -> list:
+    """Plný plán sezení s pořadím ABBA ze seedu 1."""
+    return build_session("ABBA", 1, short=False)[0]
+
+
 SAMPLE_TIME = datetime(2026, 11, 13, 9, 5, tzinfo=timezone(timedelta(hours=1)))
 
 
-def test_assign_sets() -> None:
-    """Plán se rozdělí do sad po 3 startech, zátěž se po sadách střídá."""
-    plan = assign_sets(make_plan())
-    assert [start.set_index for start in plan[:7]] == [1, 1, 1, 2, 2, 2, 3]
-    assert [start.start_in_set for start in plan[:7]] == [1, 2, 3, 1, 2, 3, 1]
-    for start in plan:
-        expected = PLACEHOLDER_LOADS[(start.set_index - 1) % len(PLACEHOLDER_LOADS)]
-        assert start.load == expected
-        assert start.block >= 1
-
-
 def test_group_sets() -> None:
-    """Skupiny odpovídají sadám; poslední může být kratší (16 startů v testovacím plánu)."""
-    plan = assign_sets(make_plan())
+    """Skupiny odpovídají sadám po STARTS_PER_SET startech."""
+    plan = sample_plan()
     groups = group_sets(plan)
     assert sum(len(group) for group in groups) == len(plan)
-    assert all(len(group) == STARTS_PER_SET for group in groups[:-1])
+    assert all(len(group) == STARTS_PER_SET for group in groups)
     for group in groups:
         assert len({start.set_index for start in group}) == 1
 
@@ -73,7 +66,7 @@ def test_make_digits_zero_can_be_first_and_seed_repeats() -> None:
 
 def test_make_set_digits() -> None:
     """Každá sada má své číslice podle své zátěže."""
-    plan = assign_sets(make_plan())
+    plan = sample_plan()
     digits = make_set_digits(plan, random.Random(1))
     assert len(digits) == len(group_sets(plan))
     for start in plan:
@@ -102,7 +95,7 @@ def test_edit_recall(text: str, name: str, char: str, expected: str) -> None:
 
 def make_sample_row(shown: str, typed: str) -> dict[str, object]:
     """Řádek CSV pro start v sadě s danými číslicemi."""
-    start = assign_sets(make_plan())[0]
+    start = sample_plan()[0]
     return make_row(
         participant="anna",
         machine="mac",

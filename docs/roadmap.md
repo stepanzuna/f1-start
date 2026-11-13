@@ -144,14 +144,16 @@ Hotovo když: celá sada proběhne a v CSV jsou 3 řádky se správnými čísli
 
 ## Krok 7: Plán celého sezení
 
-- [ ] plán na podmínku (9 go + 3 no-go na prodlevu), rozdělení do bloků po 6 startech
+- [x] plán na podmínku (9 go + 3 no-go na prodlevu), rozdělení do bloků po 6 startech
       na prodlevu (2× 2 no-go + 2× 1 no-go), max 2 no-go za sebou v bloku, číslice do plánu
-- [ ] rozdělení do bloků ABBA/BAAB, `random.Random(seed)`, seed do metadat
-- [ ] ostré starty mají `block` 1–4 (jinak by `make_row` dal `phase = "practice"`),
-      `set_index` a `start_in_set` skutečné hodnoty; kontroly obojího doplnit do `check_data.py`
-      (i velikost sady: přesně 3 řádky se stejnou zátěží)
-- [ ] nahradit dočasné `assign_sets` (krok 6) a `random.Random()` bez seedu v `main.py`
-- [ ] testy v `tests/` přes pytest: počty, poměr, pravidlo max 2 no-go, stejný seed = stejný plán
+- [x] rozdělení do bloků ABBA/BAAB, `random.Random(seed)`, seed do metadat
+- [x] ostré starty mají `block` 1–4 (jinak by `make_row` dal `phase = "practice"`),
+      `set_index` a `start_in_set` skutečné hodnoty; `check_data.py` přegeneruje plán ze seedu
+      a porovná ho s CSV (pokryje i velikost sady a zátěž)
+- [x] nahradit dočasné `assign_sets` (krok 6) a `random.Random()` bez seedu v `main.py`
+- [x] testy v `tests/` přes pytest: počty, poměr, pravidlo max 2 no-go, stejný seed = stejný plán
+- [x] zkrácený plán `--short` pro testy (12 startů), `short` v meta
+- [ ] (ručně) zkrácené sezení přes celou obrazovku, přechody mezi bloky
 
 Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocích.
 

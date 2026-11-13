@@ -1,7 +1,6 @@
 import csv
 import os
 import platform
-import random
 import sys
 from collections.abc import Callable
 from datetime import datetime
@@ -49,6 +48,7 @@ from config import (
     SETTINGS_SCREEN,
     SIM_SCREENS_SUFFIX,
     SIM_WINDOW_MODE,
+    TEST_PREFIX,
     TEXT_COLOR,
     TEXT_HEIGHT,
     TEXT_WRAP_SHARE,
@@ -64,7 +64,7 @@ from logic import (
     Start,
     apply_settings_key,
     assign_block_order,
-    assign_sets,
+    build_session,
     classify_press,
     companion_path,
     count_completed_sessions,
@@ -77,9 +77,8 @@ from logic import (
     machine_code,
     make_data_path,
     make_meta,
-    make_plan,
     make_row,
-    make_set_digits,
+    make_seed,
     make_sim_scenario,
     make_sim_typed_keys,
     nick_exists,
@@ -87,7 +86,9 @@ from logic import (
     outcome_without_press,
     parse_args,
     session_data_dir,
+    set_keys,
     settings_order_note,
+    short_plan_allowed,
     sim_window_size,
     write_meta,
 )
@@ -457,9 +458,10 @@ def ask_settings(
 
 def main() -> None:
     try:
-        simulated, escape_at = parse_args(sys.argv[1:])
+        options = parse_args(sys.argv[1:])
     except ValueError as error:
         sys.exit(str(error))
+    simulated = options.simulated
     if WINDOW_MODE not in WINDOW_MODES:
         sys.exit(
             f"WINDOW_MODE {WINDOW_MODE!r} není povolený pro ostrý běh: {WINDOW_MODES}"
@@ -483,16 +485,18 @@ def main() -> None:
         flush=True,
     )
 
-    plan = assign_sets(make_plan())
-    set_digits = make_set_digits(plan, random.Random())  # seed doplní krok 7
-    scenario = make_sim_scenario(plan, escape_at) if simulated else None
-    kb = (
-        SimulatedKeyboard(
-            scenario, rate, make_sim_typed_keys(list(set_digits.values()))
+    seed = make_seed()
+    completed = count_completed_sessions(data_root, machine)
+    scenario = None
+    kb = real_kb
+    if simulated:
+        # Simulace pořadí bloků nemění, takže plán i číslice zná předem (stejný seed).
+        sim_plan, sim_digits = build_session(
+            assign_block_order(completed), seed, options.short
         )
-        if simulated
-        else real_kb
-    )
+        scenario = make_sim_scenario(sim_plan, options.escape_at)
+        used_digits = [sim_digits[key] for key in dict.fromkeys(set_keys(sim_plan))]
+        kb = SimulatedKeyboard(scenario, rate, make_sim_typed_keys(used_digits))
 
     def exists(nick: str) -> bool:
         """Existuje už sezení s tímto nickem? V simulaci se nekontroluje."""
@@ -501,8 +505,13 @@ def main() -> None:
         )
 
     nick = ask_nick(win, kb, exists)
+    if options.short and not short_plan_allowed(simulated, nick):
+        win.close()
+        sys.exit(
+            f"Zkrácený plán (--short) je jen pro testy: nick musí začínat "
+            f"{TEST_PREFIX!r}, nebo spusť simulaci. Nick {nick!r} by šel mezi ostrá data."
+        )
     data_dir = session_data_dir(data_root, simulated, nick)
-    completed = count_completed_sessions(data_root, machine)
     block_order, language = ask_settings(
         win,
         kb,
@@ -512,6 +521,7 @@ def main() -> None:
         "" if data_dir == data_root else data_dir.name,
     )
 
+    plan, set_digits = build_session(block_order, seed, options.short)
     started_at = datetime.now().astimezone()
     data_dir.mkdir(parents=True, exist_ok=True)
     data_path = make_data_path(data_dir, nick, machine, started_at)
@@ -524,7 +534,11 @@ def main() -> None:
     meta_path = companion_path(data_path, META_SUFFIX)
     log_path = companion_path(data_path, LOG_SUFFIX)
     logging.LogFile(str(log_path), level=logging.WARNING, filemode="w")
-    print(f"data: {data_path}, pořadí {block_order}, jazyk {language}", flush=True)
+    print(
+        f"data: {data_path}, pořadí {block_order}, jazyk {language}, seed {seed}, "
+        f"startů {len(plan)}{' (zkrácený plán)' if options.short else ''}",
+        flush=True,
+    )
 
     meta = make_meta(
         participant=nick,
@@ -538,6 +552,8 @@ def main() -> None:
         planned_starts=len(plan),
         block_order=block_order,
         language=language,
+        seed=seed,
+        short=options.short,
         simulated=simulated,
     )
     if simulated:

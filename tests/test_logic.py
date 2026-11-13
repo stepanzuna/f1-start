@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from config import CSV_COLUMNS, FOREPERIODS, GO_PER_FOREPERIOD, NOGO_PER_FOREPERIOD
+from config import CSV_COLUMNS, FOREPERIODS
 from logic import (
     Start,
     classify_press,
@@ -17,7 +17,6 @@ from logic import (
     machine_code,
     make_data_path,
     make_meta,
-    make_plan,
     make_row,
     outcome_without_press,
     write_meta,
@@ -42,22 +41,6 @@ def sample_row(rt: float | None) -> dict[str, object]:
         dropped_frames=0,
         written_at=SAMPLE_TIME,
     )
-
-
-def test_plan_length() -> None:
-    """Plán má pro každou prodlevu všechny go i no-go starty."""
-    plan = make_plan()
-    assert len(plan) == len(FOREPERIODS) * (GO_PER_FOREPERIOD + NOGO_PER_FOREPERIOD)
-
-
-def test_plan_counts_per_foreperiod() -> None:
-    """Každá prodleva má přesně daný počet go a no-go startů."""
-    plan = make_plan()
-    for foreperiod in FOREPERIODS:
-        starts = [start for start in plan if start.foreperiod == foreperiod]
-        n_nogo = sum(start.is_nogo for start in starts)
-        assert n_nogo == NOGO_PER_FOREPERIOD
-        assert len(starts) - n_nogo == GO_PER_FOREPERIOD
 
 
 def test_machine_code() -> None:
@@ -106,6 +89,8 @@ def sample_meta() -> dict[str, object]:
         planned_starts=16,
         block_order="ABBA",
         language="cs",
+        seed=1,
+        short=False,
         simulated=False,
     )
 
@@ -199,6 +184,8 @@ def test_meta_with_numpy_values_is_json(tmp_path: Path) -> None:
         planned_starts=16,
         block_order="ABBA",
         language="cs",
+        seed=1,
+        short=False,
         simulated=False,
     )
     write_meta(tmp_path / "m.json", meta)

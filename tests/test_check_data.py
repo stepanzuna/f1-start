@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from check_data import check_digits, check_row, check_rt, check_session
+from check_data import check_digits, check_row, check_rt, check_session, check_sets
 from config import (
     CSV_COLUMNS,
     LOG_SUFFIX,
@@ -15,16 +15,19 @@ from config import (
     SIM_NICK,
 )
 from logic import (
+    build_session,
     companion_path,
     finish_meta,
     make_meta,
-    make_plan,
     make_row,
+    set_keys,
+    sim_recall_answer,
     write_meta,
 )
 
 SAMPLE_TIME = datetime(2026, 11, 13, 9, 5, tzinfo=timezone(timedelta(hours=1)))
 SAMPLE_RT = {"go": 0.25, "anticipation": 0.05, "commission": 0.3}
+SAMPLE_SEED = 12345
 
 
 def write_session(tmp_path: Path, aborted: bool = False) -> Path:
@@ -35,12 +38,19 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
     tmp_path.mkdir(parents=True, exist_ok=True)
     nick = SIM_NICK if tmp_path.name == SIM_DIR_NAME else "anna"
     csv_path = tmp_path / f"{nick}_mac_2026-11-13_0905.csv"
-    plan = make_plan()
+    simulated = tmp_path.name == SIM_DIR_NAME
+    plan, digits = build_session("ABBA", SAMPLE_SEED, short=False)
+    set_numbers = {
+        key: n for n, key in enumerate(dict.fromkeys(set_keys(plan)), start=1)
+    }
     with csv_path.open("w", newline="", encoding="utf-8") as data_file:
         writer = csv.DictWriter(data_file, fieldnames=CSV_COLUMNS)
         writer.writeheader()
         for trial_index, start in enumerate(plan, start=1):
             outcome = "inhibit" if start.is_nogo else "go"
+            key = (start.block, start.set_index)
+            shown = digits[key]
+            typed = sim_recall_answer(shown, set_numbers[key]) if simulated else shown
             writer.writerow(
                 make_row(
                     participant=nick,
@@ -51,6 +61,8 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
                     rt=SAMPLE_RT.get(outcome),
                     dropped_frames=0,
                     written_at=SAMPLE_TIME,
+                    digits_shown=shown,
+                    digits_typed=typed,
                 )
             )
     meta = make_meta(
@@ -70,6 +82,8 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
         planned_starts=len(plan),
         block_order="ABBA",
         language="cs",
+        seed=SAMPLE_SEED,
+        short=False,
         simulated=False,
     )
     if not aborted:
@@ -258,14 +272,9 @@ def test_simulation_with_escape(tmp_path: Path) -> None:
     """Escape ve startu 4: přerušené sezení se 3 řádky projde, dokončené ne."""
     csv_path = write_session(tmp_path / SIM_DIR_NAME, aborted=True)
     lines = csv_path.read_text(encoding="utf-8").splitlines()
-    csv_path.write_text("\n".join(lines[:4]) + "\n", encoding="utf-8")
     scenario = make_simulated(csv_path)
-    with_escape = [*scenario[:3], "escape", *scenario[3:]]
-    make_simulated(
-        csv_path,
-        sim_scenario=with_escape[: len(scenario)],
-        planned_starts=len(scenario),
-    )
+    csv_path.write_text("\n".join(lines[:4]) + "\n", encoding="utf-8")
+    make_simulated(csv_path, sim_scenario=[*scenario[:3], "escape", *scenario[4:]])
     assert check_session(csv_path)[1] == []
     make_simulated(csv_path, sim_scenario=["escape", *scenario[1:]])
     assert any("s Escapem ve startu 1" in p for p in check_session(csv_path)[1])
@@ -370,3 +379,51 @@ def test_simulation_with_escape_mid_set(tmp_path: Path) -> None:
         make_simulated(csv_path, sim_scenario=with_escape)
         problems = check_session(csv_path)[1]
         assert (problems == []) is ok, problems
+
+
+def test_plan_mismatch_detected(tmp_path: Path) -> None:
+    """Řádek, který nesedí s plánem přegenerovaným ze seedu, je problém."""
+    csv_path = write_session(tmp_path)
+    lines = csv_path.read_text(encoding="utf-8").splitlines()
+    cells = lines[1].split(",")
+    nogo = CSV_COLUMNS.index("is_nogo")
+    outcome = CSV_COLUMNS.index("outcome")
+    rt_ms = CSV_COLUMNS.index("rt_ms")
+    flipped = "False" if cells[nogo] == "True" else "True"
+    cells[nogo], cells[outcome], cells[rt_ms] = flipped, "omission", ""
+    if flipped == "True":
+        cells[outcome] = "inhibit"
+    lines[1] = ",".join(cells)
+    csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    problems = check_session(csv_path)[1]
+    assert any("řádek 1: nesedí s plánem ze seedu (is_nogo)" in p for p in problems)
+
+
+def test_short_plan_only_for_tests_and_simulation(tmp_path: Path) -> None:
+    """Zkrácený plán (meta short=True) u ostrého sezení je problém."""
+    csv_path = write_session(tmp_path)
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    write_meta(meta_path, meta | {"short": True})
+    assert any("zkrácený plán" in p for p in check_session(csv_path)[1])
+
+
+def test_check_sets() -> None:
+    """Sada musí mít start_in_set 1–3 a jednu zátěž; testovací kolo (blok 0) se nekontroluje."""
+
+    def row(block: str, set_index: str, position: str, load: str) -> dict[str, str]:
+        return {
+            "block": block,
+            "set_index": set_index,
+            "start_in_set": position,
+            "load": load,
+        }
+
+    good = [row("1", "1", str(i), "low") for i in (1, 2, 3)] + [
+        row("0", "0", "0", "none")
+    ]
+    assert check_sets(good) == []
+    bad = [row("1", "1", "1", "low"), row("1", "1", "2", "high")]
+    problems = check_sets(bad)
+    assert any("start_in_set" in p for p in problems)
+    assert any("víc zátěží" in p for p in problems)

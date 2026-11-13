@@ -17,11 +17,12 @@ from config import (
     SIM_ESCAPE_AT,
 )
 from logic import (
+    RunOptions,
     SimulatedKeyboard,
     Start,
+    build_session,
     classify_press,
     expected_outcome,
-    make_plan,
     make_sim_scenario,
     outcome_without_press,
     parse_args,
@@ -111,7 +112,7 @@ def test_reaction_time_is_from_scenario() -> None:
 
 def test_whole_plan_matches_expected_outcomes() -> None:
     """Celý plán se scénářem dá výsledky podle expected_outcome a všech 6 typů."""
-    plan = make_plan()
+    plan = build_session("ABBA", 1, short=False)[0]
     scenario = make_sim_scenario(plan)
     kb = SimulatedKeyboard(scenario, RATE)
     outcomes = []
@@ -147,7 +148,7 @@ def test_session_data_dir(simulated: bool, nick: str, subdir: str) -> None:
 
 def test_escape_in_scenario() -> None:
     """Odpověď "escape" vrátí Escape hned v prvním čtení startu."""
-    plan = make_plan()
+    plan = build_session("ABBA", 1, short=False)[0]
     scenario = make_sim_scenario(plan, escape_at=SIM_ESCAPE_AT)
     assert scenario[SIM_ESCAPE_AT - 1] == "escape"
     assert scenario.count("escape") == 1
@@ -159,14 +160,15 @@ def test_escape_in_scenario() -> None:
 @pytest.mark.parametrize(
     ("args", "expected"),
     [
-        ([], (False, None)),
-        (["--sim"], (True, None)),
-        (["--sim-escape"], (True, SIM_ESCAPE_AT)),
-        (["--sim", "--sim-escape"], (True, SIM_ESCAPE_AT)),
+        ([], RunOptions()),
+        (["--sim"], RunOptions(simulated=True)),
+        (["--sim-escape"], RunOptions(simulated=True, escape_at=SIM_ESCAPE_AT)),
+        (["--sim", "--short"], RunOptions(simulated=True, short=True)),
+        (["--short"], RunOptions(short=True)),
     ],
 )
-def test_parse_args(args: list[str], expected: tuple[bool, int | None]) -> None:
-    """Bez argumentů ostrý běh, --sim simulace, --sim-escape simulace s přerušením."""
+def test_parse_args(args: list[str], expected: RunOptions) -> None:
+    """Bez argumentů ostrý běh, --sim simulace, --sim-escape s Escapem, --short zkrácený plán."""
     assert parse_args(args) == expected
 
 

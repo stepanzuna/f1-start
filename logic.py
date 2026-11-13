@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from config import (
     ANTICIPATION_THRESHOLD,
     BACKSPACE_KEY,
+    BLOCK_LOADS,
     BLOCK_ORDER_KEYS,
     BLOCK_ORDERS,
     CZECH_DIGIT_ROW,
@@ -32,6 +33,8 @@ from config import (
     LANGUAGE_KEYS,
     LIGHT_INTERVAL,
     MACHINE_CODES,
+    MAX_NOGO_RUN,
+    MAX_SHUFFLES,
     META_SUFFIX,
     N_LAMPS,
     NICK_CHARS,
@@ -43,10 +46,11 @@ from config import (
     ORDER_AUTO,
     ORDER_MANUAL,
     PILOT_PREFIX,
-    PLACEHOLDER_BLOCK,
-    PLACEHOLDER_LOADS,
     RESPONSE_WINDOW,
     REST_INTERVAL,
+    SEED_MAX,
+    SHORT_FLAG,
+    SHORT_SETS_PER_BLOCK,
     SIM_DIR_NAME,
     SIM_EARLY_PRESS,
     SIM_ESCAPE_AT,
@@ -78,42 +82,98 @@ class Start:
     start_in_set: int
 
 
-def make_plan() -> list[Start]:
-    """Vytvoří zamíchaný plán startů, každá prodleva s daným počtem go a no-go."""
-    plan = []
-    for foreperiod in FOREPERIODS:
-        kinds = [False] * GO_PER_FOREPERIOD + [True] * NOGO_PER_FOREPERIOD
-        for is_nogo in kinds:
-            # Zástupné hodnoty, skutečnou zátěž, bloky a sady doplní krok 7.
-            plan.append(
-                Start(
-                    foreperiod=foreperiod,
-                    is_nogo=is_nogo,
-                    load="none",
-                    block=0,
-                    set_index=0,
-                    start_in_set=0,
-                )
+def make_seed() -> int:
+    """Náhodný seed sezení (ukládá se do meta, plán i číslice z něj jdou zopakovat)."""
+    return random.SystemRandom().randrange(SEED_MAX)
+
+
+def split_nogo(rng: random.Random) -> tuple[dict[float, int], dict[float, int]]:
+    """Kolik no-go má každá prodleva v prvním a druhém bloku téže podmínky.
+
+    Každá prodleva má v podmínce NOGO_PER_FOREPERIOD no-go (lichý počet, 3), takže je nejde
+    rozdělit napůl: polovina prodlev (losuje seed) jich má víc v prvním bloku, zbytek
+    ve druhém. Každý blok tak má stejný počet no-go (docs/experiment.md, „Plán startů“).
+    """
+    more = NOGO_PER_FOREPERIOD - NOGO_PER_FOREPERIOD // 2
+    fewer = NOGO_PER_FOREPERIOD // 2
+    chosen = set(rng.sample(FOREPERIODS, len(FOREPERIODS) // 2))
+    first = {fp: more if fp in chosen else fewer for fp in FOREPERIODS}
+    second = {fp: NOGO_PER_FOREPERIOD - first[fp] for fp in FOREPERIODS}
+    return first, second
+
+
+def longest_nogo_run(starts: list[Start]) -> int:
+    """Nejdelší řada no-go startů za sebou."""
+    longest = current = 0
+    for start in starts:
+        current = current + 1 if start.is_nogo else 0
+        longest = max(longest, current)
+    return longest
+
+
+def make_block(
+    load: str, block: int, nogo_per_fp: dict[float, int], rng: random.Random
+) -> list[Start]:
+    """Jeden blok: každá prodleva stejněkrát, zamíchaný, nejvýš MAX_NOGO_RUN no-go za sebou.
+
+    Míchá se znovu, dokud pravidlo neplatí. Pak se blok rozdělí do sad po STARTS_PER_SET.
+    """
+    per_fp = (GO_PER_FOREPERIOD + NOGO_PER_FOREPERIOD) // 2
+    kinds = [
+        (fp, is_nogo)
+        for fp in FOREPERIODS
+        for is_nogo in [True] * nogo_per_fp[fp] + [False] * (per_fp - nogo_per_fp[fp])
+    ]
+    for _ in range(MAX_SHUFFLES):
+        rng.shuffle(kinds)
+        starts = [
+            Start(
+                foreperiod=fp,
+                is_nogo=is_nogo,
+                load=load,
+                block=block,
+                set_index=i // STARTS_PER_SET + 1,
+                start_in_set=i % STARTS_PER_SET + 1,
             )
-    random.shuffle(plan)
+            for i, (fp, is_nogo) in enumerate(kinds)
+        ]
+        if longest_nogo_run(starts) <= MAX_NOGO_RUN:
+            return starts
+    raise RuntimeError(
+        f"Blok {block} se nepodařilo zamíchat s nejvýš {MAX_NOGO_RUN} no-go za sebou "
+        f"ani na {MAX_SHUFFLES} pokusů; zkontroluj počty v config.py."
+    )
+
+
+def make_session_plan(block_order: str, rng: random.Random) -> list[Start]:
+    """Plán celého sezení: 4 bloky v pořadí ABBA/BAAB, každá podmínka rozdělená do 2 bloků."""
+    splits = {letter: list(split_nogo(rng)) for letter in sorted(set(block_order))}
+    plan = []
+    for block, letter in enumerate(block_order, start=1):
+        nogo_per_fp = splits[letter].pop(0)
+        plan += make_block(BLOCK_LOADS[letter], block, nogo_per_fp, rng)
     return plan
 
 
-def assign_sets(plan: list[Start]) -> list[Start]:
-    """Rozdělí plán do sad po STARTS_PER_SET startech (pořadí sady i startu v ní od 1).
+def shorten_plan(plan: list[Start], sets_per_block: int) -> list[Start]:
+    """Zkrácený plán pro testy: z každého bloku jen prvních sets_per_block sad."""
+    return [start for start in plan if start.set_index <= sets_per_block]
 
-    Do kroku 7 (plán sezení) dočasně: zátěž se po sadách střídá nízká/vysoká, vše v bloku 1.
+
+def build_session(
+    block_order: str, seed: int, short: bool
+) -> tuple[list[Start], dict[tuple[int, int], str]]:
+    """Plán a číslice sezení ze seedu: stejný seed a pořadí bloků = stejné sezení.
+
+    Číslice se losují pro celý plán, zkrácení až potom, takže zkrácené sezení má stejné
+    číslice jako odpovídající sady plného.
     """
-    return [
-        replace(
-            start,
-            load=PLACEHOLDER_LOADS[(i // STARTS_PER_SET) % len(PLACEHOLDER_LOADS)],
-            block=PLACEHOLDER_BLOCK,
-            set_index=i // STARTS_PER_SET + 1,
-            start_in_set=i % STARTS_PER_SET + 1,
-        )
-        for i, start in enumerate(plan)
-    ]
+    rng = random.Random(seed)
+    plan = make_session_plan(block_order, rng)
+    digits = make_set_digits(plan, rng)
+    if short:
+        plan = shorten_plan(plan, SHORT_SETS_PER_BLOCK)
+    return plan, digits
 
 
 def group_sets(plan: list[Start]) -> list[list[Start]]:
@@ -122,6 +182,11 @@ def group_sets(plan: list[Start]) -> list[list[Start]]:
         list(starts)
         for _, starts in itertools.groupby(plan, key=lambda s: (s.block, s.set_index))
     ]
+
+
+def set_keys(plan: list[Start]) -> list[tuple[int, int]]:
+    """Klíč sady (blok, pořadí sady) pro každý start plánu."""
+    return [(start.block, start.set_index) for start in plan]
 
 
 def make_digits(load: str, rng: random.Random) -> str:
@@ -270,6 +335,8 @@ def make_meta(
     planned_starts: int,
     block_order: str,
     language: str,
+    seed: int,
+    short: bool,
     simulated: bool,
 ) -> dict[str, object]:
     """Sestaví metadata sezení; dokud sezení řádně neskončí, je označené jako přerušené."""
@@ -283,8 +350,9 @@ def make_meta(
         "simulated": simulated,
         "block_order": block_order,
         "language": language,
-        # Seed doplní krok 7, hodnocení námahy krok 9.
-        "seed": None,
+        # Hodnocení námahy doplní krok 9.
+        "seed": seed,
+        "short": short,
         "effort_ratings": [],
         "planned_starts": planned_starts,
         "frame_rate_hz": round(frame_rate, 3),
@@ -323,18 +391,31 @@ def write_meta(path: Path, meta: dict[str, object]) -> None:
     temporary.replace(path)
 
 
-def parse_args(args: list[str]) -> tuple[bool, int | None]:
-    """Přečte argumenty příkazové řádky: (simulace, start s Escapem nebo None).
+@dataclass(frozen=True)
+class RunOptions:
+    """Volby z příkazové řádky: simulace, start s Escapem (simulace), zkrácený plán."""
+
+    simulated: bool = False
+    escape_at: int | None = None
+    short: bool = False
+
+
+def parse_args(args: list[str]) -> RunOptions:
+    """Přečte argumenty příkazové řádky (--sim, --sim-escape, --short).
 
     Neznámý argument (např. překlep --simm) je chyba, aby se omylem nespustil ostrý běh.
     """
-    unknown = [arg for arg in args if arg not in (SIM_FLAG, SIM_ESCAPE_FLAG)]
+    allowed = (SIM_FLAG, SIM_ESCAPE_FLAG, SHORT_FLAG)
+    unknown = [arg for arg in args if arg not in allowed]
     if unknown:
         raise ValueError(
-            f"Neznámý argument {unknown[0]!r}. Povolené: {SIM_FLAG}, {SIM_ESCAPE_FLAG}."
+            f"Neznámý argument {unknown[0]!r}. Povolené: {', '.join(allowed)}."
         )
-    escape_at = SIM_ESCAPE_AT if SIM_ESCAPE_FLAG in args else None
-    return bool(args), escape_at
+    return RunOptions(
+        simulated=SIM_FLAG in args or SIM_ESCAPE_FLAG in args,
+        escape_at=SIM_ESCAPE_AT if SIM_ESCAPE_FLAG in args else None,
+        short=SHORT_FLAG in args,
+    )
 
 
 def session_data_dir(data_root: Path, simulated: bool, nick: str) -> Path:
@@ -345,6 +426,11 @@ def session_data_dir(data_root: Path, simulated: bool, nick: str) -> Path:
         if nick.startswith(prefix):
             return data_root / prefix
     return data_root
+
+
+def short_plan_allowed(simulated: bool, nick: str) -> bool:
+    """Zkrácený plán (--short) jen pro simulaci a testovací nick test…, nikdy pro účastníka."""
+    return session_data_dir(Path(), simulated, nick).name in (SIM_DIR_NAME, TEST_PREFIX)
 
 
 def edit_text(text: str, name: str, char: str, allowed: str, max_length: int) -> str:
@@ -442,7 +528,13 @@ def count_completed_sessions(data_dir: Path, machine: str) -> int:
         simulated = bool(meta.get("simulated"))
         nick = str(meta.get("participant", ""))
         is_main = session_data_dir(data_dir, simulated, nick) == data_dir
-        if meta.get("aborted") is False and is_main and meta.get("machine") == machine:
+        full = not meta.get("short")
+        if (
+            meta.get("aborted") is False
+            and is_main
+            and full
+            and meta.get("machine") == machine
+        ):
             count += 1
     return count
 

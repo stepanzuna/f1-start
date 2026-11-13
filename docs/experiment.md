@@ -69,7 +69,13 @@ Po každém bloku: hodnocení vnímané námahy na Paasově škále 1–9 a pauz
   se rozdělí na 8 sad po 3 startech.
 - Náhoda přes `random.Random(seed)`. Seed je náhodné celé číslo vygenerované při spuštění
   programu a ukládá se do metadat.
-- Teď pro testování: `GO_PER_FOREPERIOD = 3`, `NOGO_PER_FOREPERIOD = 1` (16 startů).
+- Implementace (krok 7, 13. 11. 2026): `build_session(pořadí bloků, seed, short)` v `logic.py`
+  vytvoří plán i číslice; stejný seed a pořadí dají přesně stejné sezení. `check_data.py`
+  plán ze seedu v meta přegeneruje a porovná s CSV.
+- Zkrácený plán pro testy (`uv run main.py --short`, i se `--sim`): z každého bloku jen
+  první sada, tedy 12 startů ve 4 blocích. V meta `short = true`. Program ho povolí jen
+  v simulaci a s nickem `test…` (jinak skončí hned po zadání nicku, nic nezapíše),
+  do střídání pořadí bloků se nepočítá a `check_data.py` ho u ostrého sezení hlásí.
 
 ## Výsledky startu
 
