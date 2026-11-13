@@ -1,25 +1,27 @@
-import random
-
-import AppKit
 from psychopy import logging
+
+from config import (
+    ANTICIPATION_THRESHOLD,
+    FLAG_COLOR,
+    FLAG_HEIGHT,
+    FLAG_POS,
+    FLAG_WIDTH,
+    LAMP_RADIUS,
+    LAMP_SPACING,
+    LAMP_Y,
+    LIGHT_INTERVAL,
+    N_LAMPS,
+    OFF,
+    ON,
+    RESPONSE_WINDOW,
+    REST_INTERVAL,
+)
+from logic import Start, make_plan
 
 logging.console.setLevel(logging.ERROR)
 
 from psychopy import core, visual  # noqa: E402
 from psychopy.hardware import keyboard  # noqa: E402
-
-OFF = "#333333"
-ON = "red"
-FLAG_COLOR = "#EF9F27"
-
-FOREPERIODS = [0.5, 1.25, 2.0, 2.75]
-LIGHT_INTERVAL = 1.0
-RESPONSE_WINDOW = 1.5
-REST_INTERVAL = 1.0
-ANTICIPATION_THRESHOLD = 0.1
-
-GO_PER_FOREPERIOD = 3
-NOGO_PER_FOREPERIOD = 1
 
 
 def frames(seconds: float, rate: float) -> int:
@@ -28,12 +30,14 @@ def frames(seconds: float, rate: float) -> int:
 
 
 def make_lamps(win: visual.Window) -> list[visual.Circle]:
-    """Vytvoří 5 zhasnutých lamp vedle sebe."""
+    """Vytvoří zhasnuté lampy vedle sebe, souměrně kolem středu."""
     lamps = []
-    for i in range(5):
-        x = -240 + i * 120
+    for i in range(N_LAMPS):
+        x = (i - (N_LAMPS - 1) / 2) * LAMP_SPACING
         lamps.append(
-            visual.Circle(win, radius=40, pos=(x, -90), fillColor=OFF, lineColor=None)
+            visual.Circle(
+                win, radius=LAMP_RADIUS, pos=(x, LAMP_Y), fillColor=OFF, lineColor=None
+            )
         )
     return lamps
 
@@ -48,7 +52,12 @@ def draw_lamps(lamps: list[visual.Circle], n_on: int) -> None:
 def make_flag(win: visual.Window) -> visual.Rect:
     """Vytvoří obdélníkovou vlajku nad semaforem."""
     return visual.Rect(
-        win, width=500, height=300, pos=(0, 180), fillColor=FLAG_COLOR, lineColor=None
+        win,
+        width=FLAG_WIDTH,
+        height=FLAG_HEIGHT,
+        pos=FLAG_POS,
+        fillColor=FLAG_COLOR,
+        lineColor=None,
     )
 
 
@@ -58,13 +67,12 @@ def run_start(
     rate: float,
     kb: keyboard.Keyboard,
     flag: visual.Rect,
-    foreperiod: float,
-    is_nogo: bool,
+    start: Start,
 ) -> tuple[str, float | None]:
     """Jeden F1 start: rozsvěcování, prodleva, zhasnutí, u no-go se žlutou vlajkou."""
     kb.clearEvents()
 
-    for n_on in range(1, 5):
+    for n_on in range(1, N_LAMPS):
         for _ in range(frames(LIGHT_INTERVAL, rate)):
             keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
             quit_if_escape(keys, win)
@@ -73,19 +81,19 @@ def run_start(
             draw_lamps(lamps, n_on)
             win.flip()
 
-    for _ in range(frames(foreperiod, rate)):
+    for _ in range(frames(start.foreperiod, rate)):
         keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
         quit_if_escape(keys, win)
         if keys:
             return ("jump_start", None)
-        draw_lamps(lamps, 5)
+        draw_lamps(lamps, N_LAMPS)
         win.flip()
 
     for i in range(frames(RESPONSE_WINDOW, rate)):
         if i == 0:
             win.callOnFlip(kb.clock.reset)
         draw_lamps(lamps, 0)
-        if is_nogo:
+        if start.is_nogo:
             flag.draw()
         win.flip()
 
@@ -94,13 +102,13 @@ def run_start(
         if keys:
             if keys[0].rt < 0:
                 return ("jump_start", None)
-            if is_nogo:
+            if start.is_nogo:
                 return ("commission", keys[0].rt)
             if keys[0].rt < ANTICIPATION_THRESHOLD:
                 return ("anticipation", keys[0].rt)
             return ("go", keys[0].rt)
 
-    if is_nogo:
+    if start.is_nogo:
         return ("inhibit", None)
     return ("omission", None)
 
@@ -126,19 +134,10 @@ def quit_if_escape(keys: list[keyboard.KeyPress], win: visual.Window) -> None:
         core.quit()
 
 
-def make_plan() -> list[tuple[float, bool]]:
-    """Vytvoří zamíchaný plán startů jako dvojice (prodleva, je no-go)."""
-    plan = []
-    for foreperiod in FOREPERIODS:
-        for _ in range(GO_PER_FOREPERIOD):
-            plan.append((foreperiod, False))
-        for _ in range(NOGO_PER_FOREPERIOD):
-            plan.append((foreperiod, True))
-    random.shuffle(plan)
-    return plan
-
-
 def main() -> None:
+    # Dočasně jen pro macOS, okno pro oba systémy řeší krok 2.
+    import AppKit
+
     kb = keyboard.Keyboard(backend="iohub")
 
     screen = AppKit.NSScreen.screens()[0].frame().size
@@ -164,9 +163,9 @@ def main() -> None:
 
     lamps = make_lamps(win)
     flag = make_flag(win)
-    for foreperiod, is_nogo in make_plan():
-        outcome, rt = run_start(win, lamps, rate, kb, flag, foreperiod, is_nogo)
-        print(foreperiod, is_nogo, outcome, rt)
+    for start in make_plan():
+        outcome, rt = run_start(win, lamps, rate, kb, flag, start)
+        print(start.foreperiod, start.is_nogo, outcome, rt)
         show_pause(win, lamps, REST_INTERVAL, rate, kb)
 
     win.close()

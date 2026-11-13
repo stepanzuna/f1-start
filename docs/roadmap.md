@@ -36,11 +36,13 @@ Hotovo když: `uv run ruff check .` projde bez chyb a `git status` je čistý.
 Hotovo když: ruční test dá správný výsledek pro go se stiskem, go bez stisku, no-go se stiskem,
 no-go bez stisku a stisk před zhasnutím.
 
-## Krok 1b: Rozdělení do modulů a dataclass `Start`
+## Krok 1b: Rozdělení do souborů a dataclass `Start`
 
-- [ ] moduly v kořeni podle sekce Architektonická rozhodnutí v `CLAUDE.md`
-- [ ] `@dataclass Start`, `make_plan()` vrací `list[Start]`, `run_start` dostává jeden `Start`
-- [ ] `plan.py` bez importu PsychoPy, první testy v `tests/test_plan.py`, nastavení pytestu v `pyproject.toml`
+- [x] `config.py` se všemi konstantami, čísla lamp a vlajky převedená na konstanty
+- [x] `logic.py`: `@dataclass Start`, `make_plan()` vrací `list[Start]` (zástupné hodnoty
+      `load="none"`, `block=0`, `set_index=0`, `start_in_set=0` do kroku 7)
+- [x] `run_start` dostává jeden `Start`, `import AppKit` uvnitř `main()`
+- [x] `logic.py` bez importu PsychoPy, první testy v `tests/test_logic.py`, nastavení pytestu v `pyproject.toml`
 
 Hotovo když: program se chová úplně stejně jako po kroku 1 a `uv run pytest` projde.
 
@@ -126,3 +128,6 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   E402 v ruffu, `tasks.json`; `make_flag`, `make_plan`, `jump_start`, lampy na y = −90.
 - 2026-11-12: krok 1: no-go start se žlutou vlajkou, výsledky `commission` a `inhibit`,
   `main()` prochází `make_plan()`; ruční test ověřil všech 5 případů.
+- 2026-11-13: rozhodnutí: tři soubory (`config.py`, `logic.py`, `main.py`) místo sedmi modulů.
+- 2026-11-13: krok 1b: `config.py` (i rozměry lamp a vlajky), `logic.py` s `@dataclass Start`
+  a `make_plan()`, `run_start` dostává `Start`, `AppKit` uvnitř `main()`, první testy pytestem.
