@@ -106,9 +106,10 @@ a 5 testovacích startů proběhne bez vypadlých snímků.
 ## Krok 4: Úvodní obrazovka s nickem
 
 - [ ] znovupoužitelná funkce pro textový vstup v okně (Enter potvrdí, Backspace maže)
-- [ ] validace nicku a kontrola, jestli už v `data/` existuje
+- [ ] validace nicku a kontrola, jestli už v `data/` existuje (Enter = přesto pokračovat,
+      Backspace = opravit)
 - [ ] automatické přiřazení pořadí bloků (střídání na tomto počítači), zobrazení a přepsání klávesou A/B
-- [ ] nick začínající `pilot` ukládat do `data/pilot/`
+- [ ] nick začínající `pilot` ukládat do `data/pilot/`, `test` do `data/test/`, obojí mimo střídání
 
 Hotovo když: nick se objeví v názvu CSV i ve sloupci `participant`, neplatný nick program odmítne
 a dvě dokončená sezení po sobě dostanou opačné pořadí bloků.
@@ -122,13 +123,15 @@ Hotovo když: po každém startu se zobrazí správná hláška.
 ## Krok 6: Paměťová zátěž
 
 - [ ] zobrazení číslic (2 nebo 6), sada 3 startů, vybavení přes funkci z kroku 4
+      (pravidla v `docs/experiment.md`, „Číslice a vybavení“)
 - [ ] sloupce `digits_shown`, `digits_typed`, `recall_correct`, zápis CSV po sadě
 
 Hotovo když: celá sada proběhne a v CSV jsou 3 řádky se správnými číslicemi.
 
 ## Krok 7: Plán celého sezení
 
-- [ ] plán na podmínku (9 go + 3 no-go na prodlevu), max 2 no-go za sebou
+- [ ] plán na podmínku (9 go + 3 no-go na prodlevu), rozdělení do bloků po 6 startech
+      na prodlevu (2× 2 no-go + 2× 1 no-go), max 2 no-go za sebou v bloku, číslice do plánu
 - [ ] rozdělení do bloků ABBA/BAAB, `random.Random(seed)`, seed do metadat
 - [ ] ostré starty mají `block` 1–4 (jinak by `make_row` dal `phase = "practice"`),
       `set_index` a `start_in_set` skutečné hodnoty; kontroly obojího doplnit do `check_data.py`
@@ -147,6 +150,7 @@ Hotovo když: testovací kolo jde zopakovat a v CSV je odlišené od ostré čá
 
 ## Krok 9: Instrukce a průběh sezení
 
+- [ ] texty instrukcí sepsat do `docs/experiment.md` a nechat schválit **před** implementací
 - [ ] úvodní instrukce, Paasova škála po bloku, pauza mezi bloky, závěrečná obrazovka
 
 Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do kódu.
@@ -192,3 +196,6 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   všech 6 typů výsledků mimo anticipation) a 2 přerušené běhy, `check_data.py` vše prošlo,
   kolize názvu ověřena bez okna. Vypadlý snímek po prvním stisku se teď počítá do startu 1
   (v ostrém sezení ho pohltí testovací kolo, ověří krok 8).
+- 2026-11-13: všech 15 otevřených otázek rozhodnuto podle návrhu a zapsáno do `docs/experiment.md`
+  (číslice bez opakování, vybavení bez limitu, rozdělení bloků po 6 startech na prodlevu, vykání,
+  Paasova škála, `data/test/` mimo střídání aj.).

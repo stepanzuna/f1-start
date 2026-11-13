@@ -36,15 +36,35 @@ a časovou přípravu na očekávaný podnět?
    - pauza 1,0 s (`REST_INTERVAL`), během ní zpětná vazba.
 3. Vybavení: účastník napíše číslice a potvrdí Enterem.
 
-Po každém bloku: hodnocení vnímané námahy na Paasově škále 1–9 a krátká pauza.
+Předčasný start (`jump_start`) uprostřed sady sadu nepřerušuje, pokračuje se dalším startem.
+
+Po každém bloku: hodnocení vnímané námahy na Paasově škále 1–9 a pauza (viz Texty pro účastníka).
+
+## Číslice a vybavení (rozhodnuto 13. 11. 2026)
+
+- Generování: náhodně 0–9 **bez opakování** v rámci sady, nula smí být první. Číslice se
+  generují předem v plánu sezení, stejný seed = stejné číslice.
+- Zobrazení: všechny číslice najednou uprostřed obrazovky, oddělené mezerou („4 7 1 9 0 3“),
+  bílé písmo, výška 80 px.
+- Vybavení: bez časového limitu. Přijímá jen číslice 0–9, nejvýš tolik, kolik jich bylo
+  zobrazeno, Backspace maže. Enter potvrdí i kratší odpověď.
+- `recall_correct = True` jen při přesné shodě celé sekvence včetně pořadí.
+- Zpětná vazba k vybavení: v ostré části žádná (stejné ve všech podmínkách), v testovacím kole
+  „Správně“ nebo „Správně bylo: 4 7“.
 
 ## Plán startů
 
 - Na každou podmínku: každá prodleva 9× go a 3× no-go (25 % no-go). Plán se vygeneruje
   systematicky smyčkami a pak zamíchá.
-- Nejvýš 2 no-go starty za sebou: zamíchat, zkontrolovat, případně míchat znovu.
-- Plán podmínky (48 startů) se rozdělí do jejích dvou bloků po 24 startech.
-- Náhoda přes `random.Random(seed)`, seed se ukládá do metadat.
+- Nejvýš 2 no-go starty za sebou: zamíchat, zkontrolovat, případně míchat znovu. Pravidlo platí
+  v rámci bloku, přes hranice sad ano (bloky odděluje pauza).
+- Plán podmínky (48 startů) se rozdělí do jejích dvou bloků po 24 startech (rozhodnuto
+  13. 11. 2026): v každém bloku má každá prodleva přesně 6 startů. Dvě prodlevy mají v bloku
+  2 no-go a 4 go, dvě 1 no-go a 5 go, druhý blok téže podmínky obráceně. Které prodlevy dostanou
+  2 no-go, losuje seed. Každý blok má tak 24 startů a přesně 6 no-go (25 %). Zamíchaný blok
+  se rozdělí na 8 sad po 3 startech.
+- Náhoda přes `random.Random(seed)`. Seed je náhodné celé číslo vygenerované při spuštění
+  programu a ukládá se do metadat.
 - Teď pro testování: `GO_PER_FOREPERIOD = 3`, `NOGO_PER_FOREPERIOD = 1` (16 startů).
 
 ## Výsledky startu
@@ -75,20 +95,36 @@ Pořadí vyhodnocení stisku v okně odpovědi: `rt < 0` → `jump_start`; no-go
   jako vlastní funkci (čtení kláves v každém snímku), protože stejný mechanismus poslouží
   i pro vybavení číslic. Názvy kláves z iohub nejdřív ověř výpisem.
 - Nick: malá písmena a–z, číslice, `-` a `_`, délka 2–16 znaků. Nesmí to být skutečné jméno.
-- Pokud v `data/` už existuje soubor se stejným nickem, upozornit a chtít jiný nick nebo potvrzení.
+- Pokud v `data/` už existuje soubor se stejným nickem: hláška „Nick už existuje.
+  Enter = přesto pokračovat, Backspace = opravit“. Nový soubor má jiný čas v názvu,
+  nic se nepřepíše.
 - Pořadí bloků: program spočítá dokončená ostrá sezení v `data/` na tomto počítači
-  (meta s `aborted = False`, bez pilotu). Sudý počet → ABBA, lichý → BAAB. Úvodní obrazovka
-  přiřazené pořadí ukáže a experimentátor ho může klávesou A/B přepsat.
+  (meta s `aborted = False`, bez pilotu, testů a simulace). Sudý počet → ABBA, lichý → BAAB.
+  Úvodní obrazovka přiřazené pořadí ukáže a experimentátor ho může klávesou A/B přepsat.
 - Pilotní sezení: nick začínající `pilot` se ukládá do `data/pilot/` a do střídání se nepočítá.
+- Testovací běhy při vývoji: nick začínající `test` se ukládá do `data/test/` a do střídání
+  se nepočítá (rozhodnuto 13. 11. 2026). Starší soubory `data/test_*` z kroku 3 před sběrem dat
+  smazat nebo přesunout do `data/test/`.
 
 ## Testovací kolo
 
 - Po zadání nicku a instrukcích, před ostrou částí.
 - Část 1: 4 starty bez číslic, každý s jinou prodlevou, z toho 1 no-go.
   Část 2: 1 sada (3 starty) s 2 číslicemi.
-- Zpětná vazba stejná jako v ostré části.
+- Zpětná vazba ke startům stejná jako v ostré části, navíc zpětná vazba k vybavení číslic.
 - Na konci: `R` = zopakovat testovací kolo, mezerník = pokračovat do ostré části.
-- Ukládá se do stejného CSV se sloupcem `phase = "practice"`.
+- Ukládá se do stejného CSV: část 1 `load = "none"`, část 2 `load = "low"`, obě `block = 0`
+  a `phase = "practice"`. `trial_index` čísluje všechny řádky CSV od 1 včetně testovacího kola.
+  Opakované testovací kolo se zapíše znovu, analýza ho vyřadí podle `phase`.
+
+## Texty pro účastníka (rozhodnuto 13. 11. 2026)
+
+- Oslovení: vykání.
+- Paasova škála po každém bloku: otázka „Kolik duševního úsilí vás stál poslední blok?“,
+  odpověď klávesou 1–9 (horní řada i numerická klávesnice). Popisky: 1 = „velmi, velmi nízké
+  úsilí“, 5 = „ani nízké, ani vysoké“, 9 = „velmi, velmi vysoké úsilí“.
+- Pauza mezi bloky: bez pevné délky, text „Pauza. Až budete připraveni, stiskněte mezerník.“
+- Texty instrukcí: Claude je sepíše do tohoto dokumentu ke schválení před krokem 9.
 
 ## Data
 
@@ -137,61 +173,20 @@ vždy `aborted = true`, ať skončilo Escapem, pádem programu, nebo vypnutím p
 Log `…_log.txt`: varování PsychoPy během sezení (hlavně vypadlé snímky `t of last frame was …ms`),
 pro kontrolu kvality měření.
 
-Simulace (`uv run main.py --sim`) ukládá do `data/sim/` a do střídání pořadí bloků
-ani do analýzy se nepočítá.
+Simulace (`uv run main.py --sim`) ukládá do `data/sim/`, testovací běhy (nick `test…`)
+do `data/test/`, pilot do `data/pilot/`. Nic z toho se nepočítá do střídání pořadí bloků
+ani do analýzy.
 
-## Otevřené otázky (k rozhodnutí, sepsáno 13. 11. 2026)
+## Otevřené otázky
 
-Ke každé je návrh. Stačí odpovědět „návrh ok“ nebo napsat jinak. Po rozhodnutí se otázka
-přesune do příslušné sekce výše a tady se smaže.
+Žádné (všechny otázky z 13. 11. 2026 rozhodnuty podle návrhu a zapsány do sekcí výše).
+Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do příslušné sekce.
 
-**Krok 4 (úvodní obrazovka)**
-1. Nick už v `data/` existuje: *návrh:* hláška „Nick už existuje. Enter = přesto pokračovat,
-   Backspace = opravit“. Nový soubor má jiný čas v názvu, nic se nepřepíše.
-1b. Testovací běhy během vývoje (dnes zástupný nick `test`) by se počítaly do střídání pořadí
-   bloků. *Návrh:* nick začínající `test` ukládat do `data/test/` a do střídání nepočítat
-   (stejně jako `pilot`). Do té doby: před sběrem dat smazat `data/test_*`.
+## Poznámky k analýze
 
-**Krok 6 (paměťová zátěž)**
-2. Jak se generují číslice: *návrh:* náhodně 0–9 **bez opakování** v rámci sady, nula smí být
-   první. Generují se předem v plánu sezení (stejný seed = stejné číslice).
-3. Zobrazení: *návrh:* všechny číslice najednou uprostřed, oddělené mezerou („4 7 1 9 0 3“),
-   bílé písmo, výška 80 px.
-4. Vybavení: *návrh:* bez časového limitu; přijímá jen číslice 0–9, nejvýš tolik, kolik jich
-   bylo zobrazeno; Enter potvrdí i kratší odpověď. `recall_correct = True` jen při přesné shodě
-   včetně pořadí.
-5. Zpětná vazba k vybavení: *návrh:* v ostré části žádná (stejné ve všech podmínkách),
-   v testovacím kole „Správně“ / „Správně bylo: 4 7“.
-6. Předčasný start (`jump_start`) uprostřed sady: *návrh:* sada pokračuje normálně dalším startem.
-
-**Krok 7 (plán sezení)**
-7. Rozdělení 48 startů podmínky do dvou bloků: 9 go a 3 no-go na prodlevu nejdou rozdělit
-   napůl. *Návrh:* v každém bloku má každá prodleva přesně 6 startů; dvě prodlevy mají v bloku
-   2 no-go a dvě 1 no-go (druhý blok téže podmínky obráceně, které prodlevy losuje seed).
-   Každý blok má tak 24 startů a přesně 6 no-go (25 %).
-8. „Nejvýš 2 no-go za sebou“: *návrh:* platí v rámci bloku, přes hranice sad ano
-   (bloky odděluje pauza).
-9. Seed: *návrh:* náhodné celé číslo vygenerované při startu programu, uložené do meta.
-
-**Krok 8 (testovací kolo)**
-10. `load` a čísla v testovacím kole: *návrh:* část 1 `load = "none"`, část 2 `load = "low"`,
-    obě `block = 0`, `phase = "practice"`. `trial_index` čísluje všechny řádky CSV od 1
-    včetně testovacího kola, opakované testovací kolo se zapíše znovu (analýza ho vyřadí podle
-    `phase`).
-
-**Krok 9 (instrukce a průběh)**
-11. Oslovení účastníka: *návrh:* vykání.
-12. Paasova škála: *návrh:* otázka „Kolik duševního úsilí vás stál poslední blok?“, odpověď
-    klávesou 1–9 (horní řada i numerická klávesnice), popisky 1 = „velmi, velmi nízké úsilí“,
-    5 = „ani nízké, ani vysoké“, 9 = „velmi, velmi vysoké úsilí“.
-13. Pauza mezi bloky: *návrh:* bez pevné délky, pokračuje se mezerníkem, text „Pauza.
-    Až budete připraveni, stiskněte mezerník.“
-14. Texty instrukcí: *návrh:* sepíšu je do tohoto dokumentu ke schválení před krokem 9.
-
-**K zamyšlení (bez nutnosti rozhodnout)**
 - 3 no-go na prodlevu a podmínku dávají 12 no-go na podmínku a účastníka. Na H1 celkově to stačí
   (smíšený logistický model přes 30 lidí), na H1 rozdělenou po prodlevách a na H4 je to málo
-  dat. Parametry neměním, jen upozorňuji pro interpretaci.
+  dat. Parametry se nemění, jen to vzít v úvahu při interpretaci.
 
 ## Kritéria vyřazení (pro analýzu, ne pro program)
 
