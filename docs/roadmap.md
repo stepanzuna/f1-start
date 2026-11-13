@@ -71,7 +71,7 @@ a 5 testovacích startů proběhne bez vypadlých snímků.
 - [x] `check_data.py`: kontrola CSV a meta jednoho sezení (sloupce, hodnoty `outcome`, `rt_ms`
       jen u výsledků s reakcí, počet řádků proti plánu, vypadlé snímky, `aborted`)
 - [x] `tests/test_rules.py`: zakázaná volání a importy ve zdrojácích, zámek schválených parametrů
-- [ ] (ručně) celý běh a jeden běh přerušený Escapem
+- [x] (ručně) celý běh a jeden běh přerušený Escapem
 
 Hotovo když: po běhu existuje CSV, meta i log, `check_data.py` je projde bez chyb, Escape
 uprostřed neztratí už uložená data a meta má `aborted = true`, `git status` data neukazuje.
@@ -140,6 +140,8 @@ Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocíc
 
 - [ ] 4 starty bez číslic (1 no-go) + 1 sada s 2 číslicemi, `phase = "practice"`
 - [ ] `R` = zopakovat, mezerník = pokračovat
+- [ ] ověřit, že vypadlý snímek po prvním stisku v sezení padne do testovacího kola,
+      ne do prvního ostrého startu (`check_data.py` ho hlásí jako varování)
 
 Hotovo když: testovací kolo jde zopakovat a v CSV je odlišené od ostré části.
 
@@ -184,3 +186,9 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   pak se `fullscr` neotevřelo a program visel, proto dočasně okno velikosti displeje + `AppKit`
   na úrovni `main()` (na Windows by spadlo, okno přes kompozitor = horší časování);
   vyřešeno v kroku 2 přes `open_window(mode)`, zamrznutí se už neopakovalo.
+- 2026-11-13: krok 3 hotový: meta (`aborted = true` od začátku, přepis na konci), log s varováními
+  PsychoPy (i důvod ukončení při špatné frekvenci), kontrola kolize názvu před oknem, kontrola
+  backendu klávesnice, `check_data.py`, `tests/test_rules.py`. Ruční test: celý běh (16 startů,
+  všech 6 typů výsledků mimo anticipation) a 2 přerušené běhy, `check_data.py` vše prošlo,
+  kolize názvu ověřena bez okna. Vypadlý snímek po prvním stisku se teď počítá do startu 1
+  (v ostrém sezení ho pohltí testovací kolo, ověří krok 8).

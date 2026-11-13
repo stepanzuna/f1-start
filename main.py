@@ -207,15 +207,18 @@ def exit_if_hidden_launch(mode: str) -> None:
 
 
 def measure_frame_rate(win: visual.Window) -> float:
-    """Změří obnovovací frekvenci, při chybě nebo nečekané hodnotě ukončí program."""
+    """Změří obnovovací frekvenci, při chybě nebo nečekané hodnotě ukončí program.
+
+    Důvod ukončení jde přes logging, takže se objeví v terminálu i v logu sezení.
+    """
     rate = win.getActualFrameRate()
     if rate is None:
-        print("Nepodařilo se změřit obnovovací frekvenci.")
+        logging.error("Nepodařilo se změřit obnovovací frekvenci.")
         win.close()
         core.quit()
     if abs(rate - EXPECTED_FRAME_RATE) > FRAME_RATE_TOLERANCE:
-        print(
-            f"Obnovovací frekvence je {rate:.1f} Hz, potřeba je {EXPECTED_FRAME_RATE} Hz.\n"
+        logging.error(
+            f"Obnovovací frekvence je {rate:.1f} Hz, potřeba je {EXPECTED_FRAME_RATE} Hz. "
             "Nastav pevnou frekvenci displeje (macOS: Nastavení → Monitory, ne ProMotion)."
         )
         win.close()
