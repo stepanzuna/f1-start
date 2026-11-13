@@ -17,6 +17,8 @@ from config import (
     DROPPED_FRAME_WARNINGS_MAX,
     ENTER_KEYS,
     EXPECTED_FRAME_RATE,
+    FEEDBACK_HEIGHT,
+    FEEDBACK_Y,
     FLAG_COLOR,
     FLAG_HEIGHT,
     FLAG_POS,
@@ -42,6 +44,7 @@ from config import (
     REST_INTERVAL,
     SETTINGS_SCREEN,
     SIM_INTRO_KEYS,
+    SIM_SCREENS_SUFFIX,
     SIM_WINDOW_MODE,
     TEXT_COLOR,
     TEXT_HEIGHT,
@@ -60,6 +63,7 @@ from logic import (
     classify_press,
     companion_path,
     count_completed_sessions,
+    feedback_text,
     finish_meta,
     genuine_presses,
     git_commit,
@@ -178,11 +182,22 @@ def show_pause(
     rest_time: float,
     rate: float,
     kb: AnyKeyboard,
+    feedback: visual.TextStim,
+    message: str,
+    capture_path: Path | None = None,
 ) -> None:
-    """Vykreslení pauzy mezi jednotlivými starty."""
-    for _ in range(frames(rest_time, rate)):
+    """Pauza mezi starty se zpětnou vazbou (zhasnuté lampy a hláška).
+
+    S capture_path (jen simulace) uloží první snímek pauzy jako obrázek.
+    """
+    set_text(feedback, message)  # jednou před pauzou, překreslení textu je pomalé
+    for i in range(frames(rest_time, rate)):
         quit_if_escape(kb.getKeys(keyList=["escape"], waitRelease=False), win)
         draw_lamps(lamps, 0)
+        feedback.draw()
+        if i == 0 and capture_path is not None:
+            win.getMovieFrame(buffer="back")
+            win.saveMovieFrames(str(capture_path))
         win.flip()
 
 
@@ -289,14 +304,17 @@ def describe_environment(project_dir: Path) -> dict[str, str]:
 
 
 def make_text(
-    win: visual.Window, y: int = 0, color: str = TEXT_COLOR
+    win: visual.Window,
+    y: int = 0,
+    color: str = TEXT_COLOR,
+    height: int = TEXT_HEIGHT,
 ) -> visual.TextStim:
     """Vytvoří prázdný text pro obrazovky s textem, zalomený podle šířky okna."""
     return visual.TextStim(
         win,
         text="",
         pos=(0, y),
-        height=TEXT_HEIGHT,
+        height=height,
         wrapWidth=win.size[0] * TEXT_WRAP_SHARE,
         color=color,
         units="pix",
@@ -462,6 +480,11 @@ def main() -> None:
 
     lamps = make_lamps(win)
     flag = make_flag(win)
+    feedback = make_text(win, FEEDBACK_Y, height=FEEDBACK_HEIGHT)
+    screens_dir = data_dir / (data_path.stem + SIM_SCREENS_SUFFIX)
+    if simulated:
+        screens_dir.mkdir()
+    captured: set[str] = set()
     win.recordFrameIntervals = True
     with data_path.open("x", newline="", encoding="utf-8") as data_file:
         writer = csv.DictWriter(data_file, fieldnames=CSV_COLUMNS)
@@ -491,7 +514,21 @@ def main() -> None:
                 row["rt_ms"],
                 f"vypadlé snímky: {dropped}",
             )
-            show_pause(win, lamps, REST_INTERVAL, rate, kb)
+            show_pause(
+                win,
+                lamps,
+                REST_INTERVAL,
+                rate,
+                kb,
+                feedback,
+                feedback_text(outcome, rt, language),
+                capture_path=(
+                    screens_dir / f"{trial_index:02d}_{outcome}.png"
+                    if simulated and outcome not in captured
+                    else None
+                ),
+            )
+            captured.add(outcome)
 
     meta = finish_meta(meta, datetime.now().astimezone(), win.nDroppedFrames)
     write_meta(meta_path, meta)

@@ -68,6 +68,9 @@ LANGUAGES = ("cs", "en")
 DEFAULT_LANGUAGE = "cs"
 LANGUAGE_NAMES = {"cs": "čeština", "en": "English"}
 TEXT_HEIGHT = 40  # px
+# Zpětná vazba v pauze: nad lampami (lampy sahají do y = -50, vlajka v pauze není)
+FEEDBACK_Y = 60  # px
+FEEDBACK_HEIGHT = 60  # px
 PROMPT_Y = 120  # px, pozice řádků na obrazovce s nickem
 INPUT_Y = 0
 MESSAGE_Y = -120
@@ -162,6 +165,10 @@ SIM_LANGUAGE = "en"
 # Klávesy, které simulace „napíše“ na úvodních obrazovkách: příliš krátký nick (chyba),
 # Backspace, nick „sim“, přepnutí jazyka na EN, start sezení.
 SIM_INTRO_KEYS = ("x", "return", "backspace", "s", "i", "m", "return", "e", "return")
+# Simulace uloží obrázek první pauzy po každém typu výsledku (obsah okna PsychoPy,
+# ne obrazovky). Na Retině je obrázek 2× zvětšený výřez středu okna (omezení
+# getMovieFrame), dlouhý text proto vypadá useknutý; vzhled ověřuje ruční test.
+SIM_SCREENS_SUFFIX = "_screens"
 SIM_DIR_NAME = "sim"
 # Simulace běží v menším okně uprostřed (jen pro ni, ostrý běh ho nedostane), aby nechala
 # volnou obrazovku. Okno je aspoň tak velké, aby se vešly lampy i vlajka s okrajem.
@@ -177,3 +184,13 @@ SIM_EARLY_PRESS = 2.0  # s od začátku startu, lampy svítí 4 × LIGHT_INTERVA
 # Odpovědi se pro go a no-go starty střídají dokola, aby padlo všech 6 výsledků.
 SIM_GO_CYCLE = ("normal", "fast", "none", "early")
 SIM_NOGO_CYCLE = ("none", "normal", "late_early", "fast")
+
+# Hláška zpětné vazby podle výsledku startu (klíč v TEXTS, docs/experiment.md)
+FEEDBACK_KEYS = {
+    "go": "feedback_go",
+    "jump_start": "feedback_false_start",
+    "anticipation": "feedback_false_start",
+    "commission": "feedback_commission",
+    "inhibit": "feedback_inhibit",
+    "omission": "feedback_omission",
+}

@@ -11,6 +11,7 @@ from logic import (
     Start,
     classify_press,
     companion_path,
+    feedback_text,
     finish_meta,
     git_commit,
     machine_code,
@@ -229,3 +230,26 @@ def test_outcome_without_press() -> None:
     """Bez stisku: no-go = inhibit, go = omission."""
     assert outcome_without_press(True) == "inhibit"
     assert outcome_without_press(False) == "omission"
+
+
+@pytest.mark.parametrize(
+    ("outcome", "rt", "cs", "en"),
+    [
+        ("go", 0.2134, "Reakce 213 ms", "Reaction 213 ms"),
+        ("go", 0.2136, "Reakce 214 ms", "Reaction 214 ms"),
+        ("jump_start", None, "Předčasný start!", "False start!"),
+        ("anticipation", 0.05, "Předčasný start!", "False start!"),
+        (
+            "commission",
+            0.3,
+            "Start pod žlutou vlajkou!",
+            "Started under the yellow flag!",
+        ),
+        ("inhibit", None, "Správně, bez startu", "Correct, no start"),
+        ("omission", None, "Bez reakce", "No reaction"),
+    ],
+)
+def test_feedback_text(outcome: str, rt: float | None, cs: str, en: str) -> None:
+    """Hláška podle docs/experiment.md v obou jazycích, u go reakční čas v celých ms."""
+    assert feedback_text(outcome, rt, "cs") == cs
+    assert feedback_text(outcome, rt, "en") == en

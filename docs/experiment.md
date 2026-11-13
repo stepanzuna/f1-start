@@ -91,6 +91,10 @@ Pořadí vyhodnocení stisku v okně odpovědi: `rt < 0` → `jump_start`; no-go
 | `inhibit` | „Správně, bez startu“ | “Correct, no start” |
 | `omission` | „Bez reakce“ | “No reaction” |
 
+Hláška se zobrazí ve zvoleném jazyce po celou pauzu (`REST_INTERVAL`) nad zhasnutými lampami:
+střed na y = 60 px, výška písma 60 px, bílá (krok 5, 13. 11. 2026; lampy sahají do y = −50,
+mezera asi 80 px). Text se nastaví jednou před pauzou, mimo měřený start.
+
 ## Úvodní obrazovka a nick
 
 - Dvě obrazovky pro experimentátora (česky, krok 4):

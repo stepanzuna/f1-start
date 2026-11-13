@@ -124,7 +124,10 @@ a dvě dokončená sezení po sobě dostanou opačné pořadí bloků.
 
 ## Krok 5: Zpětná vazba v pauze
 
-- [ ] texty podle `docs/experiment.md`, stejné ve všech podmínkách
+- [x] texty podle `docs/experiment.md`, stejné ve všech podmínkách, ve zvoleném jazyce
+      (`feedback_text` v `logic.py`, hláška nad lampami)
+- [x] simulace uloží obrázek první pauzy po každém výsledku do `data/sim/…_screens/`
+- [ ] (ručně) hlášky česky i anglicky, čitelnost a umístění na celé obrazovce
 
 Hotovo když: po každém startu se zobrazí správná hláška.
 

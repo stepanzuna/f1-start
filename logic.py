@@ -17,6 +17,7 @@ from config import (
     BLOCK_ORDER_KEYS,
     BLOCK_ORDERS,
     ENTER_KEYS,
+    FEEDBACK_KEYS,
     FLAG_HEIGHT,
     FLAG_POS,
     FLAG_WIDTH,
@@ -53,6 +54,7 @@ from config import (
     SIM_WINDOW_MARGIN,
     SIM_WINDOW_SCALE,
     TEST_PREFIX,
+    TEXTS,
 )
 
 
@@ -98,6 +100,14 @@ def classify_press(rt: float, is_nogo: bool) -> str:
     if rt < ANTICIPATION_THRESHOLD:
         return "anticipation"
     return "go"
+
+
+def feedback_text(outcome: str, rt: float | None, language: str) -> str:
+    """Hláška do pauzy po startu ve zvoleném jazyce; u go s reakčním časem v celých ms."""
+    template = TEXTS[language][FEEDBACK_KEYS[outcome]]
+    if outcome == "go":
+        return template.format(rt_ms=round(rt * 1000))
+    return template
 
 
 def outcome_without_press(is_nogo: bool) -> str:
