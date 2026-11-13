@@ -1,11 +1,12 @@
 """Testy kontroly dat (check_data.py) na uměle vytvořeném sezení."""
 
 import csv
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from check_data import check_row, check_rt, check_session
-from config import CSV_COLUMNS, LOG_SUFFIX, META_SUFFIX
+from config import CSV_COLUMNS, LOG_SUFFIX, META_SUFFIX, SIM_DIR_NAME
 from logic import (
     companion_path,
     finish_meta,
@@ -21,6 +22,7 @@ SAMPLE_RT = {"go": 0.25, "anticipation": 0.05, "commission": 0.3}
 
 def write_session(tmp_path: Path, aborted: bool = False) -> Path:
     """Zapíše platné sezení podle plánu (go starty se stiskem, no-go bez stisku)."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
     csv_path = tmp_path / "test_mac_2026-11-13_0905.csv"
     plan = make_plan()
     with csv_path.open("w", newline="", encoding="utf-8") as data_file:
@@ -182,3 +184,96 @@ def test_dropped_frames_are_warnings(tmp_path: Path) -> None:
     _, problems, warnings = check_session(csv_path)
     assert problems == []
     assert warnings == ["start 1: 1 vypadlých snímků"]
+
+
+def make_simulated(csv_path: Path, **changes: object) -> list[str]:
+    """Přepíše meta na simulaci se scénářem, který odpovídá zapsaným řádkům (go/inhibit)."""
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    with csv_path.open(newline="", encoding="utf-8") as data_file:
+        rows = list(csv.DictReader(data_file))
+    scenario = ["none" if row["is_nogo"] == "True" else "normal" for row in rows]
+    sim_meta = {
+        "simulated": True,
+        "sim_scenario": scenario,
+        "keyboard_backend": "simulated",
+    }
+    write_meta(meta_path, meta | sim_meta | changes)
+    return scenario
+
+
+def test_simulation_matching_scenario(tmp_path: Path) -> None:
+    """Simulace, jejíž výsledky odpovídají scénáři, projde."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME)
+    make_simulated(csv_path)
+    assert check_session(csv_path)[1] == []
+
+
+def test_simulation_wrong_outcome(tmp_path: Path) -> None:
+    """Výsledek, který nesedí se scénářem, je problém (chyba ve vyhodnocení startu)."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME)
+    make_simulated(csv_path)
+    text = csv_path.read_text(encoding="utf-8")
+    csv_path.write_text(text.replace(",go,250.0,", ",go,180.0,", 1), encoding="utf-8")
+    problems = check_session(csv_path)[1]
+    assert any("simulace čekala rt_ms 250.0" in problem for problem in problems)
+
+
+def test_simulation_wrong_outcome_branch(tmp_path: Path) -> None:
+    """Jiný výsledek, než předpověděl scénář, je problém (chyba ve vyhodnocení startu)."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME)
+    scenario = make_simulated(csv_path)
+    go_index = scenario.index("normal")
+    make_simulated(
+        csv_path, sim_scenario=[*scenario[:go_index], "fast", *scenario[go_index + 1 :]]
+    )
+    problems = check_session(csv_path)[1]
+    assert any("čekala anticipation, program vyhodnotil go" in p for p in problems)
+
+
+def test_simulation_without_scenario(tmp_path: Path) -> None:
+    """Simulace bez scénáře nebo s neznámou odpovědí je problém, ne pád."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME)
+    scenario = make_simulated(csv_path, sim_scenario=None)
+    assert any("nemá scénář" in p for p in check_session(csv_path)[1])
+    make_simulated(csv_path, sim_scenario=["nesmysl", *scenario[1:]])
+    assert any("neznámé odpovědi" in p for p in check_session(csv_path)[1])
+
+
+def test_simulation_with_escape(tmp_path: Path) -> None:
+    """Escape ve startu 4: přerušené sezení se 3 řádky projde, dokončené ne."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME, aborted=True)
+    lines = csv_path.read_text(encoding="utf-8").splitlines()
+    csv_path.write_text("\n".join(lines[:4]) + "\n", encoding="utf-8")
+    scenario = make_simulated(csv_path)
+    with_escape = [*scenario[:3], "escape", *scenario[3:]]
+    make_simulated(
+        csv_path,
+        sim_scenario=with_escape[: len(scenario)],
+        planned_starts=len(scenario),
+    )
+    assert check_session(csv_path)[1] == []
+    make_simulated(csv_path, sim_scenario=["escape", *scenario[1:]])
+    assert any("s Escapem ve startu 1" in p for p in check_session(csv_path)[1])
+
+
+def test_simulation_outside_sim_dir(tmp_path: Path) -> None:
+    """Simulace mimo data/sim/ i ostrá data v data/sim/ jsou problém."""
+    csv_path = write_session(tmp_path)
+    make_simulated(csv_path)
+    assert any("simulace patří do" in p for p in check_session(csv_path)[1])
+    real_in_sim = write_session(tmp_path / SIM_DIR_NAME)
+    assert any("simulace patří do" in p for p in check_session(real_in_sim)[1])
+
+
+def test_real_session_needs_iohub_and_full_screen(tmp_path: Path) -> None:
+    """Ostré sezení se simulovanou klávesnicí nebo menším oknem neprojde."""
+    csv_path = write_session(tmp_path)
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    write_meta(
+        meta_path, meta | {"keyboard_backend": "event", "window_mode": "windowed"}
+    )
+    problems = check_session(csv_path)[1]
+    assert any("klávesnici iohub" in p for p in problems)
+    assert any("režim okna" in p for p in problems)

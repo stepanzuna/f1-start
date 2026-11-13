@@ -1,21 +1,41 @@
-"""Čistá logika experimentu bez PsychoPy: popis startu, plán startů a řádky dat."""
+"""Čistá logika experimentu bez PsychoPy: start, plán, řádky dat, metadata a simulace."""
 
+import itertools
 import json
 import random
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 from config import (
     ANTICIPATION_THRESHOLD,
+    FLAG_HEIGHT,
+    FLAG_POS,
+    FLAG_WIDTH,
     FOREPERIODS,
     GO_PER_FOREPERIOD,
+    LAMP_RADIUS,
+    LAMP_SPACING,
+    LAMP_Y,
     LIGHT_INTERVAL,
     MACHINE_CODES,
+    N_LAMPS,
     NOGO_PER_FOREPERIOD,
     RESPONSE_WINDOW,
     REST_INTERVAL,
+    SIM_DIR_NAME,
+    SIM_EARLY_PRESS,
+    SIM_ESCAPE_AT,
+    SIM_ESCAPE_FLAG,
+    SIM_FLAG,
+    SIM_GO_CYCLE,
+    SIM_KEYBOARD_BACKEND,
+    SIM_NOGO_CYCLE,
+    SIM_PRESS_RT,
+    SIM_WINDOW_MARGIN,
+    SIM_WINDOW_SCALE,
 )
 
 
@@ -50,6 +70,22 @@ def make_plan() -> list[Start]:
             )
     random.shuffle(plan)
     return plan
+
+
+def classify_press(rt: float, is_nogo: bool) -> str:
+    """Vyhodnotí stisk v okně odpovědi v pořadí podle docs/experiment.md."""
+    if rt < 0:
+        return "jump_start"
+    if is_nogo:
+        return "commission"
+    if rt < ANTICIPATION_THRESHOLD:
+        return "anticipation"
+    return "go"
+
+
+def outcome_without_press(is_nogo: bool) -> str:
+    """Výsledek startu, ve kterém do konce okna odpovědi nikdo nestiskl."""
+    return "inhibit" if is_nogo else "omission"
 
 
 def machine_code(platform: str) -> str:
@@ -191,3 +227,135 @@ def write_meta(path: Path, meta: dict[str, object]) -> None:
         json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     temporary.replace(path)
+
+
+def parse_args(args: list[str]) -> tuple[bool, int | None]:
+    """Přečte argumenty příkazové řádky: (simulace, start s Escapem nebo None).
+
+    Neznámý argument (např. překlep --simm) je chyba, aby se omylem nespustil ostrý běh.
+    """
+    unknown = [arg for arg in args if arg not in (SIM_FLAG, SIM_ESCAPE_FLAG)]
+    if unknown:
+        raise ValueError(
+            f"Neznámý argument {unknown[0]!r}. Povolené: {SIM_FLAG}, {SIM_ESCAPE_FLAG}."
+        )
+    escape_at = SIM_ESCAPE_AT if SIM_ESCAPE_FLAG in args else None
+    return bool(args), escape_at
+
+
+def session_data_dir(data_root: Path, simulated: bool) -> Path:
+    """Složka pro data sezení: simulace do vlastní podsložky, mimo ostrá data."""
+    return data_root / SIM_DIR_NAME if simulated else data_root
+
+
+def make_sim_scenario(plan: list[Start], escape_at: int | None = None) -> list[str]:
+    """Přiřadí každému startu typ odpovědi; go a no-go starty se střídají dokola zvlášť.
+
+    S escape_at (pořadí startu od 1) se v tom startu stiskne Escape a sezení se přeruší.
+    """
+    go_responses = itertools.cycle(SIM_GO_CYCLE)
+    nogo_responses = itertools.cycle(SIM_NOGO_CYCLE)
+    scenario = [
+        next(nogo_responses if start.is_nogo else go_responses) for start in plan
+    ]
+    if escape_at is not None:
+        scenario[escape_at - 1] = "escape"
+    return scenario
+
+
+def sim_window_size(screen: tuple[int, int], pixel_ratio: float) -> tuple[int, int]:
+    """Velikost okna simulace: podíl displeje, ale aspoň tolik, aby se vešly všechny podněty.
+
+    Okno se zadává v bodech displeje, podněty jsou v pixelech; pixel_ratio je počet pixelů
+    na bod (Retina 2, jinak 1).
+    """
+    half_width = max(FLAG_WIDTH / 2, (N_LAMPS - 1) / 2 * LAMP_SPACING + LAMP_RADIUS)
+    half_height = max(FLAG_POS[1] + FLAG_HEIGHT / 2, abs(LAMP_Y) + LAMP_RADIUS)
+    needed = (
+        round(2 * (half_width + SIM_WINDOW_MARGIN) / pixel_ratio),
+        round(2 * (half_height + SIM_WINDOW_MARGIN) / pixel_ratio),
+    )
+    return tuple(
+        min(side, max(round(side * SIM_WINDOW_SCALE), minimum))
+        for side, minimum in zip(screen, needed, strict=True)
+    )
+
+
+def expected_outcome(response: str, is_nogo: bool) -> str:
+    """Výsledek, který má program vyhodnotit pro danou simulovanou odpověď."""
+    if response == "early":
+        return "jump_start"
+    if response == "none":
+        return outcome_without_press(is_nogo)
+    return classify_press(SIM_PRESS_RT[response], is_nogo)
+
+
+@dataclass
+class SimulatedKeyPress:
+    """Simulovaný stisk se stejnými atributy, jaké program čte z KeyPress v PsychoPy."""
+
+    name: str
+    rt: float | None
+
+
+class SimulatedKeyboard:
+    """Falešná klávesnice pro simulaci: stiskne podle scénáře, čas počítá ve snímcích.
+
+    Napodobuje tu část keyboard.Keyboard, kterou program používá: clearEvents() na začátku
+    startu vezme další odpověď ze scénáře, clock.reset() (volané při zhasnutí) spustí
+    měření reakce a getKeys() se volá jednou za snímek.
+    """
+
+    def __init__(self, scenario: list[str], rate: float) -> None:
+        self._responses = iter(scenario)
+        self._rate = rate
+        self._response: str | None = None
+        self._polls_since_clear = 0
+        self._polls_since_reset: int | None = None
+        self.clock = SimpleNamespace(reset=self._reset)
+
+    def getBackend(self) -> str:
+        """Název backendu do metadat."""
+        return SIM_KEYBOARD_BACKEND
+
+    def clearEvents(self) -> None:
+        """Začátek startu: připraví další odpověď ze scénáře."""
+        self._response = next(self._responses, None)
+        self._polls_since_clear = 0
+        self._polls_since_reset = None
+
+    def _reset(self) -> None:
+        """Zhasnutí lamp: od teď se měří reakční čas."""
+        self._polls_since_reset = 0
+
+    def _due_press(self) -> SimulatedKeyPress | None:
+        """Vrátí stisk, pokud podle scénáře v tomto snímku nastal, jinak None."""
+        if self._response in (None, "none"):
+            return None
+        if self._response == "escape":
+            return SimulatedKeyPress("escape", None)
+        if self._response == "early":
+            before_reset = self._polls_since_reset is None
+            if before_reset and self._polls_since_clear / self._rate >= SIM_EARLY_PRESS:
+                return SimulatedKeyPress("space", None)
+            return None
+        rt = SIM_PRESS_RT[self._response]
+        if (
+            self._polls_since_reset is not None
+            and self._polls_since_reset / self._rate >= rt
+        ):
+            return SimulatedKeyPress("space", rt)
+        return None
+
+    def getKeys(
+        self, keyList: list[str], waitRelease: bool = False
+    ) -> list[SimulatedKeyPress]:
+        """Jedno čtení klávesnice za snímek, stejné volání jako u keyboard.Keyboard."""
+        press = self._due_press()
+        self._polls_since_clear += 1
+        if self._polls_since_reset is not None:
+            self._polls_since_reset += 1
+        if press is None or press.name not in keyList:
+            return []
+        self._response = None
+        return [press]

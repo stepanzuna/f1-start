@@ -9,7 +9,6 @@ import psychopy
 from psychopy import logging
 
 from config import (
-    ANTICIPATION_THRESHOLD,
     CSV_COLUMNS,
     DATA_DIR_NAME,
     DROPPED_FRAME_WARNINGS_MAX,
@@ -32,11 +31,16 @@ from config import (
     PLACEHOLDER_NICK,
     RESPONSE_WINDOW,
     REST_INTERVAL,
+    SIM_NICK,
+    SIM_WINDOW_MODE,
     WINDOW_MODE,
     WINDOW_MODES,
 )
 from logic import (
+    SimulatedKeyboard,
+    SimulatedKeyPress,
     Start,
+    classify_press,
     companion_path,
     finish_meta,
     git_commit,
@@ -45,6 +49,11 @@ from logic import (
     make_meta,
     make_plan,
     make_row,
+    make_sim_scenario,
+    outcome_without_press,
+    parse_args,
+    session_data_dir,
+    sim_window_size,
     write_meta,
 )
 
@@ -53,6 +62,10 @@ logging.console.setLevel(logging.ERROR)
 import pyglet  # noqa: E402
 from psychopy import core, visual  # noqa: E402
 from psychopy.hardware import keyboard  # noqa: E402
+
+# Program čte klávesy buď ze skutečné klávesnice (iohub), nebo ze simulace se stejným rozhraním.
+AnyKeyboard = keyboard.Keyboard | SimulatedKeyboard
+AnyKeyPress = keyboard.KeyPress | SimulatedKeyPress
 
 
 def frames(seconds: float, rate: float) -> int:
@@ -96,7 +109,7 @@ def run_start(
     win: visual.Window,
     lamps: list[visual.Circle],
     rate: float,
-    kb: keyboard.Keyboard,
+    kb: AnyKeyboard,
     flag: visual.Rect,
     start: Start,
 ) -> tuple[str, float | None]:
@@ -131,17 +144,10 @@ def run_start(
         keys = kb.getKeys(keyList=["space", "escape"], waitRelease=False)
         quit_if_escape(keys, win)
         if keys:
-            if keys[0].rt < 0:
-                return ("jump_start", None)
-            if start.is_nogo:
-                return ("commission", keys[0].rt)
-            if keys[0].rt < ANTICIPATION_THRESHOLD:
-                return ("anticipation", keys[0].rt)
-            return ("go", keys[0].rt)
+            outcome = classify_press(keys[0].rt, start.is_nogo)
+            return (outcome, None if outcome == "jump_start" else keys[0].rt)
 
-    if start.is_nogo:
-        return ("inhibit", None)
-    return ("omission", None)
+    return (outcome_without_press(start.is_nogo), None)
 
 
 def show_pause(
@@ -149,7 +155,7 @@ def show_pause(
     lamps: list[visual.Circle],
     rest_time: float,
     rate: float,
-    kb: keyboard.Keyboard,
+    kb: AnyKeyboard,
 ) -> None:
     """Vykreslení pauzy mezi jednotlivými starty."""
     for _ in range(frames(rest_time, rate)):
@@ -158,7 +164,7 @@ def show_pause(
         win.flip()
 
 
-def quit_if_escape(keys: list[keyboard.KeyPress], win: visual.Window) -> None:
+def quit_if_escape(keys: list[AnyKeyPress], win: visual.Window) -> None:
     """Ukončí program v libovolné chvíli při stisku esc."""
     if any(key.name == "escape" for key in keys):
         win.close()
@@ -171,16 +177,28 @@ def get_screen_size() -> tuple[int, int]:
     return (screen.width, screen.height)
 
 
+def pixel_ratio() -> float:
+    """Počet fyzických pixelů na bod displeje (Retina 2); mimo macOS 1."""
+    if sys.platform == "darwin":
+        import AppKit
+
+        return float(AppKit.NSScreen.mainScreen().backingScaleFactor())
+    return 1.0
+
+
 def open_window(mode: str) -> visual.Window:
-    """Otevře okno přes celou obrazovku v režimu "fullscr" nebo "borderless"."""
-    if mode not in WINDOW_MODES:
+    """Otevře okno přes celou obrazovku ("fullscr", "borderless"), v simulaci menší."""
+    if mode not in (*WINDOW_MODES, SIM_WINDOW_MODE):
         raise ValueError(f"Neznámý režim okna {mode!r}, povolené: {WINDOW_MODES}")
 
+    windowed = mode == SIM_WINDOW_MODE
+    screen = get_screen_size()
+    size = sim_window_size(screen, pixel_ratio()) if windowed else screen
     win = visual.Window(
-        size=get_screen_size(),
-        pos=(0, 0),
+        size=size,
+        pos=None if windowed else (0, 0),
         fullscr=(mode == "fullscr"),
-        allowGUI=False,
+        allowGUI=windowed,
         color="black",
         units="pix",
     )
@@ -192,7 +210,7 @@ def open_window(mode: str) -> visual.Window:
             | AppKit.NSApplicationPresentationHideMenuBar
         )
     win.winHandle.activate()
-    win.mouseVisible = False
+    win.mouseVisible = windowed
     return win
 
 
@@ -204,6 +222,17 @@ def exit_if_hidden_launch(mode: str) -> None:
             "Z terminálu VS Code zůstane okno schované a experiment by běžel naslepo.\n"
             "Spusť ho přes Cmd+Shift+B nebo z aplikace Terminál."
         )
+
+
+def open_keyboard() -> keyboard.Keyboard:
+    """Otevře klávesnici přes iohub; když PsychoPy použije jiný backend, ukončí program."""
+    kb = keyboard.Keyboard(backend=KEYBOARD_BACKEND)
+    if kb.getBackend() != KEYBOARD_BACKEND:
+        sys.exit(
+            f"Klávesnice běží přes {kb.getBackend()!r} místo {KEYBOARD_BACKEND!r}, "
+            "měření by nebylo srovnatelné."
+        )
+    return kb
 
 
 def measure_frame_rate(win: visual.Window) -> float:
@@ -237,14 +266,23 @@ def describe_environment(project_dir: Path) -> dict[str, str]:
 
 
 def main() -> None:
-    exit_if_hidden_launch(WINDOW_MODE)
+    try:
+        simulated, escape_at = parse_args(sys.argv[1:])
+    except ValueError as error:
+        sys.exit(str(error))
+    if WINDOW_MODE not in WINDOW_MODES:
+        sys.exit(
+            f"WINDOW_MODE {WINDOW_MODE!r} není povolený pro ostrý běh: {WINDOW_MODES}"
+        )
+    window_mode = SIM_WINDOW_MODE if simulated else WINDOW_MODE
+    exit_if_hidden_launch(window_mode)
     machine = machine_code(sys.platform)
-    nick = PLACEHOLDER_NICK
+    nick = SIM_NICK if simulated else PLACEHOLDER_NICK
     started_at = datetime.now().astimezone()
     project_dir = Path(__file__).parent
 
-    data_dir = project_dir / DATA_DIR_NAME
-    data_dir.mkdir(exist_ok=True)
+    data_dir = session_data_dir(project_dir / DATA_DIR_NAME, simulated)
+    data_dir.mkdir(parents=True, exist_ok=True)
     data_path = make_data_path(data_dir, nick, machine, started_at)
     if data_path.exists():
         sys.exit(
@@ -254,39 +292,38 @@ def main() -> None:
     meta_path = companion_path(data_path, META_SUFFIX)
     log_path = companion_path(data_path, LOG_SUFFIX)
     logging.LogFile(str(log_path), level=logging.WARNING, filemode="w")
-    kb = keyboard.Keyboard(backend=KEYBOARD_BACKEND)
-    if kb.getBackend() != KEYBOARD_BACKEND:
-        sys.exit(
-            f"Klávesnice běží přes {kb.getBackend()!r} místo {KEYBOARD_BACKEND!r}, "
-            "měření by nebylo srovnatelné."
-        )
+    real_kb = None if simulated else open_keyboard()
     # Bez toho PsychoPy po 5 vypadlých snímcích přestane varovat a log by je nezachytil.
     visual.window.reportNDroppedFrames = DROPPED_FRAME_WARNINGS_MAX
 
-    win = open_window(WINDOW_MODE)
+    win = open_window(window_mode)
     logging.console.setLevel(logging.WARNING)
     rate = measure_frame_rate(win)
     window_size = (int(win.size[0]), int(win.size[1]))
     print(
-        f"systém {sys.platform}, režim {WINDOW_MODE}, velikost okna {window_size} px, "
-        f"frekvence {rate:.2f} Hz",
+        f"systém {sys.platform}, režim {window_mode}, velikost okna {window_size} px, "
+        f"frekvence {rate:.2f} Hz{', SIMULACE' if simulated else ''}",
         flush=True,
     )
     print(f"data: {data_path}", flush=True)
 
     plan = make_plan()
+    scenario = make_sim_scenario(plan, escape_at) if simulated else None
+    kb = SimulatedKeyboard(scenario, rate) if simulated else real_kb
     meta = make_meta(
         participant=nick,
         machine=machine,
         started_at=started_at,
         environment=describe_environment(project_dir),
         frame_rate=float(rate),
-        window_mode=WINDOW_MODE,
+        window_mode=window_mode,
         window_size=window_size,
         keyboard_backend=kb.getBackend(),
         planned_starts=len(plan),
-        simulated=False,
+        simulated=simulated,
     )
+    if simulated:
+        meta = {**meta, "sim_scenario": scenario}
     write_meta(meta_path, meta)
 
     lamps = make_lamps(win)

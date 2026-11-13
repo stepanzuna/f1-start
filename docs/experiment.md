@@ -177,6 +177,13 @@ Simulace (`uv run main.py --sim`) ukládá do `data/sim/`, testovací běhy (nic
 do `data/test/`, pilot do `data/pilot/`. Nic z toho se nepočítá do střídání pořadí bloků
 ani do analýzy.
 
+Simulace (krok 3s, 13. 11. 2026): místo klávesnice „mačká“ program sám podle scénáře, který
+se odvodí z plánu tak, aby padly všechny výsledky. Nick `sim`, okno menší (40 % displeje,
+aspoň tak velké, aby se vešly podněty; jen pro simulaci), `keyboard_backend = "simulated"`,
+v meta navíc `sim_scenario` (typ odpovědi pro každý start). `check_data.py` u simulace porovná
+výsledek a reakční čas každého startu s předpovědí scénáře. `--sim-escape` stiskne Escape
+ve 4. startu a ověří přerušené sezení. Simulace neověřuje vzhled ani časování.
+
 ## Otevřené otázky
 
 Žádné (všechny otázky z 13. 11. 2026 rozhodnuty podle návrhu a zapsány do sekcí výše).

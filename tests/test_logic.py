@@ -9,6 +9,7 @@ import pytest
 from config import CSV_COLUMNS, FOREPERIODS, GO_PER_FOREPERIOD, NOGO_PER_FOREPERIOD
 from logic import (
     Start,
+    classify_press,
     companion_path,
     finish_meta,
     git_commit,
@@ -17,6 +18,7 @@ from logic import (
     make_meta,
     make_plan,
     make_row,
+    outcome_without_press,
     write_meta,
 )
 
@@ -199,3 +201,27 @@ def test_meta_with_numpy_values_is_json(tmp_path: Path) -> None:
         json.loads((tmp_path / "m.json").read_text(encoding="utf-8"))["frame_rate_hz"]
         == 59.98
     )
+
+
+@pytest.mark.parametrize(
+    ("rt", "is_nogo", "expected"),
+    [
+        (-0.01, False, "jump_start"),
+        (-0.01, True, "jump_start"),
+        (0.05, True, "commission"),
+        (0.30, True, "commission"),
+        (0.05, False, "anticipation"),
+        (0.0999, False, "anticipation"),
+        (0.1, False, "go"),
+        (0.30, False, "go"),
+    ],
+)
+def test_classify_press(rt: float, is_nogo: bool, expected: str) -> None:
+    """Pořadí vyhodnocení: rt < 0, no-go, práh anticipace, jinak go."""
+    assert classify_press(rt, is_nogo) == expected
+
+
+def test_outcome_without_press() -> None:
+    """Bez stisku: no-go = inhibit, go = omission."""
+    assert outcome_without_press(True) == "inhibit"
+    assert outcome_without_press(False) == "omission"

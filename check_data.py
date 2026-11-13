@@ -18,6 +18,7 @@ from config import (
     DATA_DIR_NAME,
     FOREPERIODS,
     GO_OUTCOMES,
+    KEYBOARD_BACKEND,
     LOADS,
     LOG_SUFFIX,
     MACHINE_CODES,
@@ -26,8 +27,11 @@ from config import (
     NOGO_OUTCOMES,
     OUTCOMES_WITH_RT,
     RESPONSE_WINDOW,
+    SIM_DIR_NAME,
+    SIM_PRESS_RT,
+    WINDOW_MODES,
 )
-from logic import companion_path
+from logic import companion_path, expected_outcome
 
 REQUIRED_META_KEYS = (
     "participant",
@@ -52,6 +56,7 @@ REQUIRED_META_KEYS = (
     "dropped_frames_total",
 )
 BOOL_TEXTS = ("True", "False")
+SIM_RESPONSES = ("early", "none", "escape", *SIM_PRESS_RT)
 BLOCK_TEXTS = tuple(str(block) for block in range(N_BLOCKS + 1))
 MS_PER_S = 1000
 
@@ -178,13 +183,61 @@ def check_meta(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]
 
 
 def check_files(csv_path: Path, meta: dict[str, object]) -> list[str]:
-    """Ověří název souboru proti meta a existenci logu."""
+    """Ověří název a umístění souboru proti meta a existenci logu."""
     problems = []
+    in_sim_dir = csv_path.parent.name == SIM_DIR_NAME
+    if bool(meta.get("simulated")) != in_sim_dir:
+        problems.append(
+            f"simulated={meta.get('simulated')}, ale soubor leží v {csv_path.parent.name}/ "
+            f"(simulace patří do {SIM_DIR_NAME}/, nic jiného tam)"
+        )
+    if not meta.get("simulated"):
+        if meta.get("keyboard_backend") != KEYBOARD_BACKEND:
+            problems.append(f"ostré sezení nemá klávesnici {KEYBOARD_BACKEND}")
+        if meta.get("window_mode") not in WINDOW_MODES:
+            problems.append(f"ostré sezení má režim okna {meta.get('window_mode')!r}")
     prefix = f"{meta.get('participant')}_{meta.get('machine')}_"
     if not csv_path.name.startswith(prefix):
         problems.append(f"název {csv_path.name} nezačíná {prefix}")
     if not companion_path(csv_path, LOG_SUFFIX).exists():
         problems.append(f"chybí log {csv_path.stem}{LOG_SUFFIX}")
+    return problems
+
+
+def check_simulation(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]:
+    """U simulace porovná výsledek a reakční čas každého startu s předpovědí scénáře."""
+    if not meta.get("simulated"):
+        return []
+    scenario = meta.get("sim_scenario")
+    if not isinstance(scenario, list) or len(scenario) != meta.get("planned_starts"):
+        return ["meta: simulace nemá scénář pro každý plánovaný start"]
+    unknown = sorted(
+        {response for response in scenario if response not in SIM_RESPONSES}
+    )
+    if unknown:
+        return [f"meta: neznámé odpovědi ve scénáři simulace {unknown}"]
+    problems = []
+    if "escape" in scenario:
+        escape_at = scenario.index("escape") + 1
+        if not meta["aborted"] or len(rows) != escape_at - 1:
+            problems.append(
+                f"simulace s Escapem ve startu {escape_at} má mít aborted a {escape_at - 1} "
+                f"řádků, má aborted={meta['aborted']} a {len(rows)} řádků"
+            )
+        scenario = scenario[: escape_at - 1]
+    for index, (row, response) in enumerate(zip(rows, scenario, strict=False), start=1):
+        expected = expected_outcome(response, row["is_nogo"] == "True")
+        if row["outcome"] != expected:
+            problems.append(
+                f"řádek {index}: simulace {response!r} čekala {expected}, "
+                f"program vyhodnotil {row['outcome']}"
+            )
+        elif expected in OUTCOMES_WITH_RT:
+            expected_rt = str(round(SIM_PRESS_RT[response] * MS_PER_S, 1))
+            if row["rt_ms"] != expected_rt:
+                problems.append(
+                    f"řádek {index}: simulace čekala rt_ms {expected_rt}, je {row['rt_ms']}"
+                )
     return problems
 
 
@@ -250,6 +303,7 @@ def check_session(csv_path: Path) -> tuple[str, list[str], list[str]]:
             )
     problems.extend(check_meta(meta, rows))
     problems.extend(check_files(csv_path, meta))
+    problems.extend(check_simulation(meta, rows))
     return summarize(meta, rows), problems, dropped_frame_warnings(rows)
 
 

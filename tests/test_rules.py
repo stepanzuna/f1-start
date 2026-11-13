@@ -94,3 +94,9 @@ def test_no_single_platform_import_at_module_level(path: Path) -> None:
 def test_approved_parameters(name: str) -> None:
     """Parametry experimentu odpovídají schváleným hodnotám v docs/experiment.md."""
     assert getattr(config, name) == APPROVED_PARAMETERS[name]
+
+
+def test_real_window_mode_is_full_screen() -> None:
+    """Ostrý běh má režim celé obrazovky; menší okno simulace mezi povolenými není."""
+    assert config.WINDOW_MODE in config.WINDOW_MODES
+    assert config.SIM_WINDOW_MODE not in config.WINDOW_MODES

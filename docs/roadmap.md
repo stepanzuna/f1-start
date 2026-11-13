@@ -78,10 +78,14 @@ uprostřed neztratí už uložená data a meta má `aborted = true`, `git status
 
 ## Krok 3s: Režim simulace
 
-- [ ] `uv run main.py --sim`: falešná klávesnice se stejným rozhraním jako iohub (`getKeys`,
-      `clearEvents`, `clock`), stisky podle scénáře (všechny typy výsledků), okno `borderless`
-- [ ] data do `data/sim/`, `simulated = true` v meta, nikdy do střídání pořadí bloků
-- [ ] test, že simulace vyrobí všech 6 typů výsledků a `check_data.py` je projde
+- [x] `uv run main.py --sim`: falešná klávesnice se stejným rozhraním jako iohub (`getKeys`,
+      `clearEvents`, `clock`), stisky podle scénáře (všechny typy výsledků), menší okno
+      (`windowed`, jen pro simulaci, místo původně plánovaného `borderless` přes celou obrazovku)
+- [x] data do `data/sim/`, `simulated = true` v meta, nikdy do střídání pořadí bloků
+- [x] test, že simulace vyrobí všech 6 typů výsledků a `check_data.py` je projde
+- [x] `classify_press` v `logic.py` (vyhodnocení stisku testovatelné bez okna)
+- [x] `--sim-escape` (přerušení Escapem), neznámý argument ukončí program,
+      `check_data.py` porovná simulaci se scénářem a hlídá klávesnici a okno ostrých sezení
 
 Hotovo když: Claude spustí simulaci sám z terminálu VS Code a `check_data.py` výstup projde.
 Simulace neověřuje časování, to dál ověřuje ruční test.
@@ -199,3 +203,9 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
 - 2026-11-13: všech 15 otevřených otázek rozhodnuto podle návrhu a zapsáno do `docs/experiment.md`
   (číslice bez opakování, vybavení bez limitu, rozdělení bloků po 6 startech na prodlevu, vykání,
   Paasova škála, `data/test/` mimo střídání aj.).
+- 2026-11-13: krok 3s hotový: `uv run main.py --sim` / `--sim-escape`, `SimulatedKeyboard`
+  a scénář v `logic.py`, `classify_press` vytažené z `run_start`, okno simulace menší (jen pro
+  simulaci, velikost podle podnětů a Retiny), `check_data.py` porovná simulaci se scénářem
+  a hlídá klávesnici a okno ostrých sezení, neznámý argument ukončí program. Ověřeno 3 běhy
+  simulace (celá, s Escapem, po opravě okna), vše bez vypadlých snímků; recenze spec-reviewer
+  zapracovaná.

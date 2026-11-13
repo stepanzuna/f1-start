@@ -73,3 +73,26 @@ CSV_COLUMNS = (
     "dropped_frames",
     "timestamp",
 )
+
+# Simulace (uv run main.py --sim): falešná klávesnice podle scénáře, bez člověka
+SIM_FLAG = "--sim"
+SIM_ESCAPE_FLAG = (
+    "--sim-escape"  # simulace, která Escapem přeruší start č. SIM_ESCAPE_AT
+)
+SIM_ESCAPE_AT = 4
+SIM_NICK = "sim"
+SIM_DIR_NAME = "sim"
+# Simulace běží v menším okně uprostřed (jen pro ni, ostrý běh ho nedostane), aby nechala
+# volnou obrazovku. Okno je aspoň tak velké, aby se vešly lampy i vlajka s okrajem.
+SIM_WINDOW_MODE = "windowed"
+SIM_WINDOW_SCALE = 0.4  # podíl velikosti displeje
+SIM_WINDOW_MARGIN = 40  # px kolem podnětů
+SIM_KEYBOARD_BACKEND = "simulated"
+# Typy odpovědí: čas stisku vůči zhasnutí v sekundách (záporný = těsně před zhasnutím,
+# přečtený až v prvním snímku okna odpovědi); "early" = stisk během rozsvěcování lamp,
+# "none" = bez stisku, "escape" = Escape na začátku startu (přerušení sezení).
+SIM_PRESS_RT = {"late_early": -0.02, "fast": 0.05, "normal": 0.25}
+SIM_EARLY_PRESS = 2.0  # s od začátku startu, lampy svítí 4 × LIGHT_INTERVAL
+# Odpovědi se pro go a no-go starty střídají dokola, aby padlo všech 6 výsledků.
+SIM_GO_CYCLE = ("normal", "fast", "none", "early")
+SIM_NOGO_CYCLE = ("none", "normal", "late_early", "fast")
