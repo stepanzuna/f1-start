@@ -125,6 +125,68 @@ Metadata `…_meta.json`: nick, stroj, `platform.platform()`, verze Pythonu a Ps
 git commit (`git rev-parse --short HEAD`), začátek a konec sezení, `aborted` (Escape),
 pořadí bloků, seed, naměřená frekvence, režim okna, backend klávesnice,
 kopie všech časových konstant, hodnocení námahy po blocích, vypadlé snímky celkem.
+Doplněno 13. 11. 2026: skutečná velikost okna v px, `simulated` (režim simulace),
+u git commitu přípona `-dirty`, když běžel kód s necommitnutými změnami.
+
+Meta se zapíše hned po změření frekvence s `aborted = true` a `ended_at = null`. Na řádném konci
+sezení se přepíše (`aborted = false`, konec, vypadlé snímky celkem). Přerušené sezení tak má
+vždy `aborted = true`, ať skončilo Escapem, pádem programu, nebo vypnutím počítače.
+
+Log `…_log.txt`: varování PsychoPy během sezení (hlavně vypadlé snímky `t of last frame was …ms`),
+pro kontrolu kvality měření.
+
+Simulace (`uv run main.py --sim`) ukládá do `data/sim/` a do střídání pořadí bloků
+ani do analýzy se nepočítá.
+
+## Otevřené otázky (k rozhodnutí, sepsáno 13. 11. 2026)
+
+Ke každé je návrh. Stačí odpovědět „návrh ok“ nebo napsat jinak. Po rozhodnutí se otázka
+přesune do příslušné sekce výše a tady se smaže.
+
+**Krok 4 (úvodní obrazovka)**
+1. Nick už v `data/` existuje: *návrh:* hláška „Nick už existuje. Enter = přesto pokračovat,
+   Backspace = opravit“. Nový soubor má jiný čas v názvu, nic se nepřepíše.
+
+**Krok 6 (paměťová zátěž)**
+2. Jak se generují číslice: *návrh:* náhodně 0–9 **bez opakování** v rámci sady, nula smí být
+   první. Generují se předem v plánu sezení (stejný seed = stejné číslice).
+3. Zobrazení: *návrh:* všechny číslice najednou uprostřed, oddělené mezerou („4 7 1 9 0 3“),
+   bílé písmo, výška 80 px.
+4. Vybavení: *návrh:* bez časového limitu; přijímá jen číslice 0–9, nejvýš tolik, kolik jich
+   bylo zobrazeno; Enter potvrdí i kratší odpověď. `recall_correct = True` jen při přesné shodě
+   včetně pořadí.
+5. Zpětná vazba k vybavení: *návrh:* v ostré části žádná (stejné ve všech podmínkách),
+   v testovacím kole „Správně“ / „Správně bylo: 4 7“.
+6. Předčasný start (`jump_start`) uprostřed sady: *návrh:* sada pokračuje normálně dalším startem.
+
+**Krok 7 (plán sezení)**
+7. Rozdělení 48 startů podmínky do dvou bloků: 9 go a 3 no-go na prodlevu nejdou rozdělit
+   napůl. *Návrh:* v každém bloku má každá prodleva přesně 6 startů; dvě prodlevy mají v bloku
+   2 no-go a dvě 1 no-go (druhý blok téže podmínky obráceně, které prodlevy losuje seed).
+   Každý blok má tak 24 startů a přesně 6 no-go (25 %).
+8. „Nejvýš 2 no-go za sebou“: *návrh:* platí v rámci bloku, přes hranice sad ano
+   (bloky odděluje pauza).
+9. Seed: *návrh:* náhodné celé číslo vygenerované při startu programu, uložené do meta.
+
+**Krok 8 (testovací kolo)**
+10. `load` a čísla v testovacím kole: *návrh:* část 1 `load = "none"`, část 2 `load = "low"`,
+    obě `block = 0`, `phase = "practice"`. `trial_index` čísluje všechny řádky CSV od 1
+    včetně testovacího kola, opakované testovací kolo se zapíše znovu (analýza ho vyřadí podle
+    `phase`).
+
+**Krok 9 (instrukce a průběh)**
+11. Oslovení účastníka: *návrh:* vykání.
+12. Paasova škála: *návrh:* otázka „Kolik duševního úsilí vás stál poslední blok?“, odpověď
+    klávesou 1–9 (horní řada i numerická klávesnice), popisky 1 = „velmi, velmi nízké úsilí“,
+    5 = „ani nízké, ani vysoké“, 9 = „velmi, velmi vysoké úsilí“.
+13. Pauza mezi bloky: *návrh:* bez pevné délky, pokračuje se mezerníkem, text „Pauza.
+    Až budete připraveni, stiskněte mezerník.“
+14. Texty instrukcí: *návrh:* sepíšu je do tohoto dokumentu ke schválení před krokem 9.
+
+**K zamyšlení (bez nutnosti rozhodnout)**
+- 3 no-go na prodlevu a podmínku dávají 12 no-go na podmínku a účastníka. Na H1 celkově to stačí
+  (smíšený logistický model přes 30 lidí), na H1 rozdělenou po prodlevách a na H4 je to málo
+  dat. Parametry neměním, jen upozorňuji pro interpretaci.
 
 ## Kritéria vyřazení (pro analýzu, ne pro program)
 

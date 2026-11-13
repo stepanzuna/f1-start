@@ -1,7 +1,8 @@
 # Roadmapa
 
-Pravidla: jeden krok najednou. Po dokončení kroku odškrtnout, doplnit řádek do logu dole
-a commitnout. Každý krok má „Hotovo když“: bez splnění se nepokračuje.
+Pravidla: jeden krok najednou, provádí se podle skillu `/krok`. Po dokončení kroku odškrtnout,
+doplnit řádek do logu dole a commitnout na větev kroku. Každý krok má „Hotovo když“: bez splnění
+se nepokračuje. Položky označené (ručně) ověřuje uživatel, ostatní Claude sám.
 
 ## Hotovo
 
@@ -57,28 +58,50 @@ Hotovo když: program se chová úplně stejně jako po kroku 1 a `uv run pytest
 Hotovo když: na Macu se okno otevře v popředí přes celou obrazovku
 a 5 testovacích startů proběhne bez vypadlých snímků.
 
-## Krok 2w: Ověření na Windows (později, před pilotem)
+## Krok 3: Ukládání do CSV a metadat
 
-- [ ] na Windows nainstalovat uv, `git clone`, `uv sync`, spustit a sepsat, kde a s jakou chybou to selže
+- [x] složka `data/` (v `.gitignore`), název souboru podle `docs/experiment.md`
+- [x] sloupce CSV podle `docs/experiment.md`, `rt_ms` zaokrouhlené, `flush()` po každém zápisu
+- [x] počítání vypadlých snímků na start
+- [ ] kontrola existence souboru **před** otevřením okna (dnes druhé spuštění ve stejné minutě
+      spadne s `FileExistsError` až s otevřeným oknem)
+- [ ] `…_meta.json` se vším ze specifikace: zápis hned po změření frekvence s `aborted = true`,
+      přepis na konci sezení (`aborted = false`, konec, vypadlé snímky celkem)
+- [ ] log `…_log.txt` s varováními PsychoPy
+- [ ] `check_data.py`: kontrola CSV a meta jednoho sezení (sloupce, hodnoty `outcome`, `rt_ms`
+      jen u výsledků s reakcí, počet řádků proti plánu, vypadlé snímky, `aborted`)
+- [ ] `tests/test_rules.py`: zakázaná volání a importy ve zdrojácích, zámek schválených parametrů
+- [ ] (ručně) celý běh a jeden běh přerušený Escapem
+
+Hotovo když: po běhu existuje CSV, meta i log, `check_data.py` je projde bez chyb, Escape
+uprostřed neztratí už uložená data a meta má `aborted = true`, `git status` data neukazuje.
+
+## Krok 3s: Režim simulace
+
+- [ ] `uv run main.py --sim`: falešná klávesnice se stejným rozhraním jako iohub (`getKeys`,
+      `clearEvents`, `clock`), stisky podle scénáře (všechny typy výsledků), okno `borderless`
+- [ ] data do `data/sim/`, `simulated = true` v meta, nikdy do střídání pořadí bloků
+- [ ] test, že simulace vyrobí všech 6 typů výsledků a `check_data.py` je projde
+
+Hotovo když: Claude spustí simulaci sám z terminálu VS Code a `check_data.py` výstup projde.
+Simulace neověřuje časování, to dál ověřuje ruční test.
+
+## Krok 2w: Ověření na Windows (co nejdřív, jakmile bude Windows k dispozici)
+
+Riziko: kdyby se na Windows opakovaly potíže s celou obrazovkou jako na Macu, oprava potřebuje
+čas. Proto hned po kroku 3, ne až před pilotem. Výsledky (meta a log z běhu s nickem `test`,
+bez osobních údajů) zkopírovat do `docs/diag/` a commitnout, Claude je pak přečte.
+
+- [ ] (ručně) na Windows nainstalovat uv, `git clone`, `uv sync`, spustit a sepsat, kde a s jakou chybou to selže
 - [ ] zjistit rozlišení, škálování displeje (DPI) a obnovovací frekvenci
-- [ ] oba režimy okna z PowerShellu i z terminálu VS Code, skutečná velikost okna v pixelech
-- [ ] porovnat fyzickou velikost lamp a vlajky s Macem (pravítkem; Mac: vlajka 5 × 3 cm).
+- [ ] (ručně) oba režimy okna z PowerShellu i z terminálu VS Code, skutečná velikost okna v pixelech
+- [ ] (ručně) porovnat fyzickou velikost lamp a vlajky s Macem (pravítkem; Mac: vlajka 5 × 3 cm).
       Při velkém rozdílu rozhodnout: přijmout (počítač je faktor), nebo jednotky `deg`
       (`monitors.Monitor` s šířkou displeje v cm a vzdáleností 60 cm, na Retině
       `win.monitor.setSizePix(win.size)`; varování „Monitor specification not found“ zůstane)
 
 Hotovo když: na Windows se okno otevře v popředí přes celou obrazovku
 a 5 testovacích startů proběhne bez vypadlých snímků.
-
-## Krok 3: Ukládání do CSV a metadat
-
-- [ ] složka `data/` (v `.gitignore`), název souboru podle `docs/experiment.md`
-- [ ] sloupce CSV podle `docs/experiment.md`, `rt_ms` zaokrouhlené, `flush()` po každém zápisu
-- [ ] `…_meta.json` se vším ze specifikace, `aborted = True` při Escape
-- [ ] počítání vypadlých snímků na start
-
-Hotovo když: po běhu existuje CSV i meta, Escape uprostřed neztratí už uložená data
-a `git status` data neukazuje.
 
 ## Krok 4: Úvodní obrazovka s nickem
 
@@ -150,3 +173,12 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   nový krok 2u (jednotky `deg`, Retina).
 - 2026-11-13: krok 2u zrušen: jednotky zůstávají `pix` (na Macu velikost v pořádku),
   porovnání velikosti s Windows přesunuto do kroku 2w.
+- 2026-11-13: samostatný režim práce s Claude Code: celé kroky bez průběžného schvalování,
+  hooky (ruff po úpravě, ruff + pytest na konci, blokace `data/` v gitu), skill `/krok`,
+  subagent `spec-reviewer`, otevřené otázky ke krokům 4–9 v `docs/experiment.md`.
+  Schváleno: `check_data.py`, režim simulace (nový krok 3s), meta s `aborted = true` od začátku,
+  krok 2w hned po kroku 3. Historie okna přesunuta z `CLAUDE.md` do tohoto logu:
+  dřív `fullscr` z terminálu VS Code zůstalo za VS Code (nepomohlo ani `winHandle.activate()`),
+  pak se `fullscr` neotevřelo a program visel, proto dočasně okno velikosti displeje + `AppKit`
+  na úrovni `main()` (na Windows by spadlo, okno přes kompozitor = horší časování);
+  vyřešeno v kroku 2 přes `open_window(mode)`, zamrznutí se už neopakovalo.
