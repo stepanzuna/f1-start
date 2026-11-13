@@ -57,20 +57,15 @@ Hotovo když: program se chová úplně stejně jako po kroku 1 a `uv run pytest
 Hotovo když: na Macu se okno otevře v popředí přes celou obrazovku
 a 5 testovacích startů proběhne bez vypadlých snímků.
 
-## Krok 2u: Velikost podnětů ve stupních zrakového úhlu
-
-- [ ] změřit šířku obrazovky v cm (MacBook, později Windows), vzdálenost 60 cm
-- [ ] `monitors.Monitor` pro každý počítač, okno s `units="deg"`
-- [ ] převést rozměry lamp a vlajky na stupně (nové hodnoty schválit, zapsat do `docs/experiment.md`)
-
-Hotovo když: lampy a vlajka mají na Macu stejnou fyzickou velikost, jakou předpovídá výpočet
-ze stupňů, a zmizí varování „Monitor specification not found“.
-
 ## Krok 2w: Ověření na Windows (později, před pilotem)
 
 - [ ] na Windows nainstalovat uv, `git clone`, `uv sync`, spustit a sepsat, kde a s jakou chybou to selže
 - [ ] zjistit rozlišení, škálování displeje (DPI) a obnovovací frekvenci
 - [ ] oba režimy okna z PowerShellu i z terminálu VS Code, skutečná velikost okna v pixelech
+- [ ] porovnat fyzickou velikost lamp a vlajky s Macem (pravítkem; Mac: vlajka 5 × 3 cm).
+      Při velkém rozdílu rozhodnout: přijmout (počítač je faktor), nebo jednotky `deg`
+      (`monitors.Monitor` s šířkou displeje v cm a vzdáleností 60 cm, na Retině
+      `win.monitor.setSizePix(win.size)`; varování „Monitor specification not found“ zůstane)
 
 Hotovo když: na Windows se okno otevře v popředí přes celou obrazovku
 a 5 testovacích startů proběhne bez vypadlých snímků.
@@ -153,3 +148,5 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   kontrola frekvence 60 ± 1 Hz, pojistka proti spuštění z terminálu VS Code; na macOS `fullscr`
   z Terminálu a `Cmd+Shift+B` bez vypadlých snímků ve startech. Windows přesunuto do kroku 2w,
   nový krok 2u (jednotky `deg`, Retina).
+- 2026-11-13: krok 2u zrušen: jednotky zůstávají `pix` (na Macu velikost v pořádku),
+  porovnání velikosti s Windows přesunuto do kroku 2w.
