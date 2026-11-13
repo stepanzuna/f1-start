@@ -117,7 +117,7 @@ a 5 testovacích startů proběhne bez vypadlých snímků.
 - [x] volba jazyka účastníka (C/E), `language` v meta, texty pro účastníka česky i anglicky v `TEXTS`
 - [x] simulace napíše nick (s chybou a Backspace) a přepne jazyk, `check_data.py` to ověří
 - [x] nick začínající `pilot` ukládat do `data/pilot/`, `test` do `data/test/`, obojí mimo střídání
-- [ ] (ručně) psaní nicku na skutečné klávesnici, obě obrazovky, dvě dokončená sezení po sobě
+- [x] (ručně) psaní nicku na skutečné klávesnici, obě obrazovky, dvě dokončená sezení po sobě
 
 Hotovo když: nick se objeví v názvu CSV i ve sloupci `participant`, neplatný nick program odmítne
 a dvě dokončená sezení po sobě dostanou opačné pořadí bloků.
@@ -213,3 +213,10 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   a hlídá klávesnici a okno ostrých sezení, neznámý argument ukončí program. Ověřeno 3 běhy
   simulace (celá, s Escapem, po opravě okna), vše bez vypadlých snímků; recenze spec-reviewer
   zapracovaná.
+- 2026-11-13: krok 4 hotový: obrazovka s nickem (ověření, varování u existujícího nicku, filtr
+  fantomových stisků po Shiftu), obrazovka nastavení (pořadí bloků A/B, jazyk C/E, cílová složka),
+  texty pro účastníka česky i anglicky v `TEXTS` (rozhodnutí: volba jazyka, ne oba naráz),
+  `language` v meta, `pilot…`/`test…` do podsložek mimo střídání. Ruční test: `test_x` bez
+  fantomu do `data/test/`, EN; `zkouska1` dvakrát dokončeno → ABBA, pak BAAB, třetí sezení
+  ukázalo ABBA podle 2 sezení. Testovací soubory přesunuty do `data/test/`. Neověřeno ručně:
+  přepsání pořadí klávesou A/B (pokryto testem).
