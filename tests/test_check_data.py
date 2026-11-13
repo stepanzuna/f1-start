@@ -5,22 +5,26 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
+
 from check_data import check_digits, check_row, check_rt, check_session, check_sets
 from config import (
     CSV_COLUMNS,
     LOG_SUFFIX,
     META_SUFFIX,
     SIM_DIR_NAME,
+    SIM_ESCAPE_AT,
     SIM_LANGUAGE,
     SIM_NICK,
+    SIM_PRACTICE_ROUNDS,
 )
 from logic import (
+    build_practice,
     build_session,
     companion_path,
     finish_meta,
     make_meta,
     make_row,
-    set_keys,
     sim_recall_answer,
     write_meta,
 )
@@ -40,17 +44,25 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
     csv_path = tmp_path / f"{nick}_mac_2026-11-13_0905.csv"
     simulated = tmp_path.name == SIM_DIR_NAME
     plan, digits = build_session("ABBA", SAMPLE_SEED, short=False)
-    set_numbers = {
-        key: n for n, key in enumerate(dict.fromkeys(set_keys(plan)), start=1)
-    }
+    rounds = build_practice(SAMPLE_SEED, SIM_PRACTICE_ROUNDS if simulated else 1)
+    sequence = [
+        (s, ds[(s.block, s.set_index)]) for starts, ds in rounds for s in starts
+    ]
+    sequence += [(s, digits[(s.block, s.set_index)]) for s in plan]
     with csv_path.open("w", newline="", encoding="utf-8") as data_file:
         writer = csv.DictWriter(data_file, fieldnames=CSV_COLUMNS)
         writer.writeheader()
-        for trial_index, start in enumerate(plan, start=1):
-            outcome = "inhibit" if start.is_nogo else "go"
+        set_number = 0
+        previous_key = None
+        for trial_index, (start, shown) in enumerate(sequence, start=1):
             key = (start.block, start.set_index)
-            shown = digits[key]
-            typed = sim_recall_answer(shown, set_numbers[key]) if simulated else shown
+            if key != previous_key and shown:
+                set_number += 1
+            previous_key = key
+            outcome = "inhibit" if start.is_nogo else "go"
+            typed = (
+                sim_recall_answer(shown, set_number) if simulated and shown else shown
+            )
             writer.writerow(
                 make_row(
                     participant=nick,
@@ -87,7 +99,7 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
         simulated=False,
     )
     if not aborted:
-        meta = finish_meta(meta, SAMPLE_TIME + timedelta(minutes=5), 1)
+        meta = finish_meta(meta, SAMPLE_TIME + timedelta(minutes=5), 1, len(rounds))
     write_meta(companion_path(csv_path, META_SUFFIX), meta)
     companion_path(csv_path, LOG_SUFFIX).write_text("", encoding="utf-8")
     return csv_path
@@ -269,7 +281,7 @@ def test_simulation_without_scenario(tmp_path: Path) -> None:
 
 
 def test_simulation_with_escape(tmp_path: Path) -> None:
-    """Escape ve startu 4: přerušené sezení se 3 řádky projde, dokončené ne."""
+    """Escape ve startu 4 (část 1 testovacího kola, zápis po startu): 3 řádky."""
     csv_path = write_session(tmp_path / SIM_DIR_NAME, aborted=True)
     lines = csv_path.read_text(encoding="utf-8").splitlines()
     scenario = make_simulated(csv_path)
@@ -368,13 +380,22 @@ def test_check_digits_simulation() -> None:
     assert any("sada 2" in problem for problem in check_digits(rows, simulated=True))
 
 
-def test_simulation_with_escape_mid_set(tmp_path: Path) -> None:
-    """Escape ve startu 5 (uprostřed 2. sady): zapsaná je jen 1. sada, tedy 3 řádky."""
+@pytest.mark.parametrize(
+    ("escape_at", "written"),
+    [
+        (6, 4),
+        (SIM_ESCAPE_AT, 2 * 7 + 3),
+    ],  # uprostřed sady testovacího kola / 2. ostré sady
+)
+def test_simulation_with_escape_mid_set(
+    tmp_path: Path, escape_at: int, written: int
+) -> None:
+    """Escape uprostřed sady: rozdělaná sada se nezapíše, dřívější řádky ano."""
     csv_path = write_session(tmp_path / SIM_DIR_NAME, aborted=True)
     lines = csv_path.read_text(encoding="utf-8").splitlines()
     scenario = make_simulated(csv_path)
-    with_escape = [*scenario[:4], "escape", *scenario[5:]]
-    for n_rows, ok in ((3, True), (4, False)):
+    with_escape = [*scenario[: escape_at - 1], "escape", *scenario[escape_at:]]
+    for n_rows, ok in ((written, True), (written + 1, False)):
         csv_path.write_text("\n".join(lines[: n_rows + 1]) + "\n", encoding="utf-8")
         make_simulated(csv_path, sim_scenario=with_escape)
         problems = check_session(csv_path)[1]
@@ -396,7 +417,7 @@ def test_plan_mismatch_detected(tmp_path: Path) -> None:
     lines[1] = ",".join(cells)
     csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     problems = check_session(csv_path)[1]
-    assert any("řádek 1: nesedí s plánem ze seedu (is_nogo)" in p for p in problems)
+    assert any("řádek 1: nesedí s testovacím kolem (is_nogo)" in p for p in problems)
 
 
 def test_short_plan_only_for_tests_and_simulation(tmp_path: Path) -> None:
@@ -427,3 +448,15 @@ def test_check_sets() -> None:
     problems = check_sets(bad)
     assert any("start_in_set" in p for p in problems)
     assert any("víc zátěží" in p for p in problems)
+
+
+def test_practice_must_come_first(tmp_path: Path) -> None:
+    """Ostrá část bez testovacího kola nebo s kolem uprostřed je problém."""
+    csv_path = write_session(tmp_path)
+    lines = csv_path.read_text(encoding="utf-8").splitlines()
+    header, practice, main_rows = lines[0], lines[1:8], lines[8:]
+    csv_path.write_text("\n".join([header, *main_rows]) + "\n", encoding="utf-8")
+    assert any("bez testovacího kola" in p for p in check_session(csv_path)[1])
+    moved = [header, *main_rows[:3], *practice, *main_rows[3:]]
+    csv_path.write_text("\n".join(moved) + "\n", encoding="utf-8")
+    assert any("není celé před ostrou částí" in p for p in check_session(csv_path)[1])

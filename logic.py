@@ -19,6 +19,8 @@ from config import (
     BLOCK_ORDERS,
     CZECH_DIGIT_ROW,
     DIGITS,
+    DIGITS_BLANK,
+    DIGITS_DURATION,
     DIGITS_PER_LOAD,
     ENTER_KEYS,
     FEEDBACK_KEYS,
@@ -46,6 +48,13 @@ from config import (
     ORDER_AUTO,
     ORDER_MANUAL,
     PILOT_PREFIX,
+    PRACTICE_BLOCK,
+    PRACTICE_CONTINUE_KEY,
+    PRACTICE_LOAD,
+    PRACTICE_REPEAT_KEY,
+    PRACTICE_SET_NOGO,
+    PRACTICE_SINGLE_NOGO,
+    RECALL_FEEDBACK_DURATION,
     RESPONSE_WINDOW,
     REST_INTERVAL,
     SEED_MAX,
@@ -60,6 +69,7 @@ from config import (
     SIM_INTRO_KEYS,
     SIM_KEYBOARD_BACKEND,
     SIM_NOGO_CYCLE,
+    SIM_PRACTICE_ROUNDS,
     SIM_PRESS_RT,
     SIM_RECALL_CYCLE,
     SIM_WINDOW_MARGIN,
@@ -153,6 +163,50 @@ def make_session_plan(block_order: str, rng: random.Random) -> list[Start]:
         nogo_per_fp = splits[letter].pop(0)
         plan += make_block(BLOCK_LOADS[letter], block, nogo_per_fp, rng)
     return plan
+
+
+def practice_round(
+    rng: random.Random,
+) -> tuple[list[Start], dict[tuple[int, int], str]]:
+    """Jedno testovací kolo: každá prodleva jednou bez číslic, pak sada s nízkou zátěží.
+
+    Část 1 (bez číslic) má sady po jednom startu, aby se zapisovala po každém startu.
+    """
+    singles = list(FOREPERIODS)
+    rng.shuffle(singles)
+    single_nogo = set(rng.sample(range(len(singles)), PRACTICE_SINGLE_NOGO))
+    starts = [
+        Start(fp, i in single_nogo, "none", PRACTICE_BLOCK, i + 1, 1)
+        for i, fp in enumerate(singles)
+    ]
+    set_index = len(singles) + 1
+    set_fps = rng.sample(FOREPERIODS, STARTS_PER_SET)
+    set_nogo = set(rng.sample(range(STARTS_PER_SET), PRACTICE_SET_NOGO))
+    starts += [
+        Start(fp, i in set_nogo, PRACTICE_LOAD, PRACTICE_BLOCK, set_index, i + 1)
+        for i, fp in enumerate(set_fps)
+    ]
+    digits = {(PRACTICE_BLOCK, i + 1): "" for i in range(len(singles))}
+    digits[(PRACTICE_BLOCK, set_index)] = make_digits(PRACTICE_LOAD, rng)
+    return starts, digits
+
+
+def build_practice(
+    seed: int, rounds: int
+) -> list[tuple[list[Start], dict[tuple[int, int], str]]]:
+    """Testovací kola ze seedu (vlastní generátor, plán ostré části se tím nemění).
+
+    Opakované kolo je nové (jiné prodlevy i číslice), ale ze stejného seedu vždy stejné.
+    """
+    rng = random.Random(f"practice-{seed}")
+    return [practice_round(rng) for _ in range(rounds)]
+
+
+def recall_feedback_text(shown: str, typed: str, language: str) -> str:
+    """Hláška ke správnosti vybavení v testovacím kole."""
+    if typed == shown:
+        return TEXTS[language]["recall_correct"]
+    return TEXTS[language]["recall_wrong"].format(digits=" ".join(shown))
 
 
 def shorten_plan(plan: list[Start], sets_per_block: int) -> list[Start]:
@@ -275,7 +329,7 @@ def make_row(
     return {
         "participant": participant,
         "machine": machine,
-        "phase": "practice" if start.block == 0 else "main",
+        "phase": "practice" if start.block == PRACTICE_BLOCK else "main",
         "block": start.block,
         "load": start.load,
         "set_index": start.set_index,
@@ -365,13 +419,20 @@ def make_meta(
             "RESPONSE_WINDOW": RESPONSE_WINDOW,
             "REST_INTERVAL": REST_INTERVAL,
             "ANTICIPATION_THRESHOLD": ANTICIPATION_THRESHOLD,
+            "DIGITS_DURATION": DIGITS_DURATION,
+            "DIGITS_BLANK": DIGITS_BLANK,
+            "RECALL_FEEDBACK_DURATION": RECALL_FEEDBACK_DURATION,
         },
+        "practice_rounds": None,
         "dropped_frames_total": None,
     }
 
 
 def finish_meta(
-    meta: dict[str, object], ended_at: datetime, dropped_frames_total: int
+    meta: dict[str, object],
+    ended_at: datetime,
+    dropped_frames_total: int,
+    practice_rounds: int,
 ) -> dict[str, object]:
     """Vrátí kopii metadat označenou jako řádně dokončené sezení."""
     return {
@@ -379,6 +440,7 @@ def finish_meta(
         "ended_at": ended_at.isoformat(timespec="seconds"),
         "aborted": False,
         "dropped_frames_total": dropped_frames_total,
+        "practice_rounds": practice_rounds,
     }
 
 
@@ -619,12 +681,59 @@ def sim_recall_keys(digits: str, set_number: int) -> list[str]:
     return [*prefix, *sim_recall_answer(digits, set_number), "return"]
 
 
-def make_sim_typed_keys(set_digits: list[str]) -> list[str]:
-    """Všechny klávesy simulace: úvodní obrazovky a pak vybavení každé sady s číslicemi."""
+def digits_in_order(plan: list[Start], digits: dict[tuple[int, int], str]) -> list[str]:
+    """Číslice sad plánu v pořadí, v jakém sady proběhnou (i prázdné u sad bez číslic)."""
+    return [digits[key] for key in dict.fromkeys(set_keys(plan))]
+
+
+def sim_sequence(
+    block_order: str, seed: int, short: bool
+) -> tuple[list[Start], list[list[str]], list[str]]:
+    """Co simulace projde: SIM_PRACTICE_ROUNDS testovacích kol, pak ostrou část.
+
+    Vrací (všechny starty v pořadí, číslice sad po testovacích kolech, číslice ostrých sad).
+    """
+    rounds = build_practice(seed, SIM_PRACTICE_ROUNDS)
+    plan, digits = build_session(block_order, seed, short)
+    starts = [start for round_starts, _ in rounds for start in round_starts] + plan
+    practice_digits = [[d for d in digits_in_order(s, ds) if d] for s, ds in rounds]
+    main_digits = [d for d in digits_in_order(plan, digits) if d]
+    return starts, practice_digits, main_digits
+
+
+def make_sim_typed_keys(
+    practice_digits: list[list[str]], main_digits: list[str]
+) -> list[str]:
+    """Všechny klávesy simulace: úvodní obrazovky, vybavení a volba po testovacím kole.
+
+    practice_digits jsou číslice sad po kolech. Po každém testovacím kole kromě
+    posledního R (zopakovat), po posledním mezerník.
+    """
     keys = list(SIM_INTRO_KEYS)
-    for set_number, digits in enumerate([d for d in set_digits if d], start=1):
+    set_number = 0
+    for round_number, round_digits in enumerate(practice_digits, start=1):
+        for digits in round_digits:
+            set_number += 1
+            keys += sim_recall_keys(digits, set_number)
+        last = round_number == len(practice_digits)
+        keys.append(PRACTICE_CONTINUE_KEY if last else PRACTICE_REPEAT_KEY)
+    for digits in main_digits:
+        set_number += 1
         keys += sim_recall_keys(digits, set_number)
     return keys
+
+
+def starts_written_before(sequence: list[Start], escape_at: int) -> int:
+    """Kolik startů je zapsaných, když Escape přijde ve startu escape_at (od 1).
+
+    Zapisuje se po celých skupinách (sada, v části 1 testovacího kola po startu).
+    """
+    written = 0
+    for group in group_sets(sequence):
+        if written + len(group) >= escape_at:
+            break
+        written += len(group)
+    return written
 
 
 @dataclass

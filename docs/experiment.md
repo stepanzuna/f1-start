@@ -144,6 +144,16 @@ mezera asi 80 px). Text se nastaví jednou před pauzou, mimo měřený start.
 - Ukládá se do stejného CSV: část 1 `load = "none"`, část 2 `load = "low"`, obě `block = 0`
   a `phase = "practice"`. `trial_index` čísluje všechny řádky CSV od 1 včetně testovacího kola.
   Opakované testovací kolo se zapíše znovu, analýza ho vyřadí podle `phase`.
+- Implementace (krok 8, 13. 11. 2026):
+  - Kolo se tvoří ze seedu sezení vlastním generátorem (`build_practice`), takže plán ostré
+    části zůstane stejný. Opakované kolo má jiné prodlevy i číslice, ze stejného seedu ale
+    vždy stejné. `check_data.py` testovací kola přegeneruje a porovná s CSV.
+  - V CSV: část 1 má `set_index` 1–4 a `start_in_set` 1 (zápis po každém startu),
+    sada části 2 má `set_index` 5 a `start_in_set` 1–3.
+  - Obrazovka po kole (ve zvoleném jazyce): „Konec testovacího kola. R = zopakovat testovací
+    kolo, Mezerník = pokračovat do měření“ (EN: “End of the practice round. R = repeat the
+    practice round, Space = continue to the experiment”).
+  - Návrhy čekající na schválení: viz Otevřené otázky 1–2.
 
 ## Texty pro účastníka (rozhodnuto 13. 11. 2026)
 
@@ -218,13 +228,26 @@ Simulace (krok 3s, 13. 11. 2026): místo klávesnice „mačká“ program sám 
 se odvodí z plánu tak, aby padly všechny výsledky. Nick `sim`, okno menší (40 % displeje,
 aspoň tak velké, aby se vešly podněty; jen pro simulaci), `keyboard_backend = "simulated"`,
 v meta navíc `sim_scenario` (typ odpovědi pro každý start). `check_data.py` u simulace porovná
-výsledek a reakční čas každého startu s předpovědí scénáře. `--sim-escape` stiskne Escape
-v 5. startu (uprostřed 2. sady) a ověří přerušené sezení i to, že se rozdělaná sada nezapíše. Simulace neověřuje vzhled ani časování.
+výsledek a reakční čas každého startu s předpovědí scénáře. Simulace projde testovací kolo,
+zopakuje ho (`R`) a pokračuje mezerníkem. `--sim-escape` stiskne Escape v 19. startu
+(uprostřed 2. ostré sady po dvou testovacích kolech) a ověří přerušené sezení i to,
+že se rozdělaná sada nezapíše. Simulace neověřuje vzhled ani časování.
 
 ## Otevřené otázky
 
-Žádné (všechny otázky z 13. 11. 2026 rozhodnuty podle návrhu a zapsány do sekcí výše).
+Otázky z 13. 11. 2026 (první várka) jsou rozhodnuté a zapsané v sekcích výše.
 Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do příslušné sekce.
+
+**Krok 8 (testovací kolo), zatím implementováno podle návrhu:**
+1. No-go v sadě části 2: *návrh:* 1 ze 3 startů (`PRACTICE_SET_NOGO = 1`), aby si účastník
+   vyzkoušel vlajku i pod paměťovou zátěží. Alternativa: 0 (sada jen s go starty).
+2. Délka hlášky „Správně“ / „Správně bylo: 4 7“ po vybavení: *návrh:* 2 s
+   (`RECALL_FEEDBACK_DURATION`).
+3. Prodlevy a pořadí v testovacím kole: *návrh (implementováno):* sada části 2 má 3 různé
+   prodlevy ze 4 (náhodně), no-go v obou částech na náhodném místě (může být i první start).
+   Mezi částí 1 a 2 není předěl, číslice se objeví hned po pauze posledního startu části 1.
+4. Text obrazovky po testovacím kole (viz „Testovací kolo“): *návrh:* schválit spolu
+   s ostatními texty instrukcí v kroku 9.
 
 ## Poznámky k analýze
 

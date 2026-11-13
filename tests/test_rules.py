@@ -40,6 +40,9 @@ APPROVED_PARAMETERS = {
     "NOGO_PER_FOREPERIOD": 3,
     "MAX_NOGO_RUN": 2,
     "BLOCK_LOADS": {"A": "low", "B": "high"},
+    # Testovací kolo: 4 starty bez číslic (1 no-go) + 1 sada s nízkou zátěží.
+    "PRACTICE_SINGLE_NOGO": 1,
+    "PRACTICE_LOAD": "low",
 }
 
 

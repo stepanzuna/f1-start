@@ -146,8 +146,9 @@ def test_sim_recall_patterns() -> None:
 
 
 def test_make_sim_typed_keys() -> None:
-    """Úvodní klávesy, pak vybavení jen u sad s číslicemi (sady bez číslic se přeskočí)."""
-    keys = make_sim_typed_keys(["47", "", "093182"])
+    """Úvod, testovací kola (R mezi nimi, mezerník po posledním), pak ostré sady."""
+    keys = make_sim_typed_keys([["47"], ["35"]], ["093182"])
     assert keys[: len(SIM_INTRO_KEYS)] == list(SIM_INTRO_KEYS)
     rest = keys[len(SIM_INTRO_KEYS) :]
-    assert rest == sim_recall_keys("47", 1) + sim_recall_keys("093182", 2)
+    expected = sim_recall_keys("47", 1) + ["r"] + sim_recall_keys("35", 2) + ["space"]
+    assert rest == expected + sim_recall_keys("093182", 3)

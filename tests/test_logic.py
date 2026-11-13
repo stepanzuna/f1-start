@@ -121,7 +121,7 @@ def test_meta_starts_aborted() -> None:
 def test_finish_meta() -> None:
     """Dokončení sezení zruší příznak přerušení a nezmění původní slovník."""
     meta = sample_meta()
-    finished = finish_meta(meta, SAMPLE_TIME + timedelta(minutes=15), 2)
+    finished = finish_meta(meta, SAMPLE_TIME + timedelta(minutes=15), 2, 1)
     assert finished["aborted"] is False
     assert finished["ended_at"] == "2026-11-13T09:20:07+01:00"
     assert finished["dropped_frames_total"] == 2
@@ -132,7 +132,7 @@ def test_write_meta_roundtrip(tmp_path: Path) -> None:
     """Uložená metadata jdou načíst zpět a nezůstane po nich dočasný soubor."""
     path = tmp_path / "x_meta.json"
     write_meta(path, sample_meta())
-    write_meta(path, finish_meta(sample_meta(), SAMPLE_TIME, 0))
+    write_meta(path, finish_meta(sample_meta(), SAMPLE_TIME, 0, 1))
     assert json.loads(path.read_text(encoding="utf-8"))["aborted"] is False
     assert [p.name for p in tmp_path.iterdir()] == ["x_meta.json"]
 

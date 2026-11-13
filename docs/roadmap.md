@@ -159,11 +159,14 @@ Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocíc
 
 ## Krok 8: Testovací kolo
 
-- [ ] 4 starty bez číslic (1 no-go) + 1 sada s 2 číslicemi, `phase = "practice"`
-- [ ] `R` = zopakovat, mezerník = pokračovat (obrazovka čte bez `keyList`, viz CLAUDE.md)
-- [ ] opakované testovací kolo: číslice podle klíče (blok, sada) se nesmí opakovat, část 1
+- [x] 4 starty bez číslic (1 no-go) + 1 sada s 2 číslicemi, `phase = "practice"`
+- [x] `R` = zopakovat, mezerník = pokračovat (obrazovka čte bez `keyList`, viz CLAUDE.md)
+- [x] zpětná vazba k vybavení v testovacím kole, průběh sad v `run_sets` (sdílí ostrá část)
+- [x] `check_data.py` přegeneruje testovací kola ze seedu, přesný počet řádků před Escapem
+- [x] opakované testovací kolo: číslice podle klíče (blok, sada) se nesmí opakovat, část 1
       (bez číslic) se zapisuje po každém startu a nesmí se slít do jedné sady; upravit vzorec
       Escapu v `check_simulation` pro sady různé délky
+- [ ] (ručně) testovací kolo, opakování, vypadlý snímek po prvním stisku v testovacím kole
 - [ ] ověřit, že vypadlý snímek po prvním stisku v sezení padne do testovacího kola,
       ne do prvního ostrého startu (`check_data.py` ho hlásí jako varování)
 

@@ -51,6 +51,17 @@ DIGITS_HEIGHT = 80  # px
 CZECH_DIGIT_ROW = dict(zip("+ěščřžýáíé", "1234567890", strict=True))
 
 # Plán startů
+# Testovací kolo (docs/experiment.md, „Testovací kolo“): blok 0, phase "practice".
+# Část 1: každá prodleva jednou bez číslic (zapisuje se po startu, set_index 1–4),
+# část 2: jedna sada s nízkou zátěží (set_index 5).
+PRACTICE_BLOCK = 0
+PRACTICE_SINGLE_NOGO = 1  # no-go startů v části 1
+PRACTICE_SET_NOGO = 1  # no-go startů v sadě části 2 (návrh, viz docs/experiment.md)
+PRACTICE_LOAD = "low"
+RECALL_FEEDBACK_DURATION = 2.0  # s, hláška ke správnosti vybavení (jen testovací kolo)
+PRACTICE_REPEAT_KEY = "r"
+PRACTICE_CONTINUE_KEY = "space"
+
 # Na podmínku a prodlevu (docs/experiment.md, „Plán startů“); podmínka = 2 bloky
 GO_PER_FOREPERIOD = 9
 NOGO_PER_FOREPERIOD = 3
@@ -136,6 +147,10 @@ TEXTS = {
         "effort_mid": "5 = ani nízké, ani vysoké",
         "effort_high": "9 = velmi, velmi vysoké úsilí",
         "block_pause": "Pauza. Až budete připraveni, stiskněte mezerník.",
+        "practice_end": (
+            "Konec testovacího kola.\n\n"
+            "R = zopakovat testovací kolo\nMezerník = pokračovat do měření"
+        ),
     },
     "en": {
         "feedback_go": "Reaction {rt_ms} ms",
@@ -151,6 +166,10 @@ TEXTS = {
         "effort_mid": "5 = neither low nor high mental effort",
         "effort_high": "9 = very, very high mental effort",
         "block_pause": "Break. When you are ready, press the space bar.",
+        "practice_end": (
+            "End of the practice round.\n\n"
+            "R = repeat the practice round\nSpace = continue to the experiment"
+        ),
     },
 }
 MACHINE_CODES = {"darwin": "mac", "win32": "win"}
@@ -179,7 +198,10 @@ SIM_FLAG = "--sim"
 SIM_ESCAPE_FLAG = (
     "--sim-escape"  # simulace, která Escapem přeruší start č. SIM_ESCAPE_AT
 )
-SIM_ESCAPE_AT = 5  # uprostřed 2. sady: rozdělaná sada se nesmí zapsat
+# Pořadí startu od začátku sezení (2 testovací kola po 7 startech, pak ostrá část):
+# 19 = prostřední start 2. ostré sady, rozdělaná sada se nesmí zapsat.
+SIM_ESCAPE_AT = 19
+SIM_PRACTICE_ROUNDS = 2  # simulace testovací kolo jednou zopakuje (R), pak mezerník
 SIM_NICK = "sim"
 SIM_LANGUAGE = "en"
 # Klávesy, které simulace „napíše“ na úvodních obrazovkách: příliš krátký nick (chyba),
