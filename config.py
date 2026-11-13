@@ -52,7 +52,84 @@ DROPPED_FRAME_WARNINGS_MAX = 100_000
 DATA_DIR_NAME = "data"
 META_SUFFIX = "_meta.json"
 LOG_SUFFIX = "_log.txt"
-PLACEHOLDER_NICK = "test"  # do kroku 4 (zadání nicku v okně)
+PILOT_PREFIX = "pilot"  # nick pilot… → data/pilot/, mimo střídání pořadí bloků
+TEST_PREFIX = "test"  # nick test… → data/test/ (vývoj), mimo střídání pořadí bloků
+
+# Úvodní obrazovky (pro experimentátora, česky)
+NICK_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_-"
+NICK_MIN_LENGTH = 2
+NICK_MAX_LENGTH = 16
+ENTER_KEYS = ("return", "num_enter")
+BACKSPACE_KEY = "backspace"
+BLOCK_ORDERS = ("ABBA", "BAAB")  # A = nízká zátěž, B = vysoká; sudý počet sezení → ABBA
+BLOCK_ORDER_KEYS = {"a": "ABBA", "b": "BAAB"}
+LANGUAGE_KEYS = {"c": "cs", "e": "en"}
+LANGUAGES = ("cs", "en")
+DEFAULT_LANGUAGE = "cs"
+LANGUAGE_NAMES = {"cs": "čeština", "en": "English"}
+TEXT_HEIGHT = 40  # px
+PROMPT_Y = 120  # px, pozice řádků na obrazovce s nickem
+INPUT_Y = 0
+MESSAGE_Y = -120
+CURSOR = "_"
+TEXT_WRAP_SHARE = 0.8  # podíl šířky okna, na který se text zalomí
+TEXT_COLOR = "white"
+WARNING_COLOR = "#EF9F27"
+NICK_PROMPT = (
+    "Nick účastníka (malá písmena a–z, číslice, - a _, 2–16 znaků), Enter = potvrdit"
+)
+NICK_INVALID = "Neplatný nick: 2–16 znaků, jen malá písmena a–z, číslice, - a _."
+NICK_EXISTS = "Nick {nick} už existuje. Enter = přesto pokračovat, Backspace = opravit"
+ORDER_AUTO = "automaticky podle {completed} dokončených sezení na tomto počítači"
+ORDER_MANUAL = "přepsáno ručně, automaticky by bylo {auto_order}"
+FOLDER_NOTE = {
+    "": "data/",
+    "pilot": "data/pilot/ (pilot, nepočítá se)",
+    "test": "data/test/ (test, nepočítá se)",
+    "sim": "data/sim/ (simulace)",
+}
+SETTINGS_SCREEN = (
+    "Účastník: {nick}    počítač: {machine}    data: {folder}\n\n"
+    "Pořadí bloků: {block_order}    ({order_note})\n"
+    "A = ABBA, B = BAAB\n\n"
+    "Jazyk účastníka: {language_name}\n"
+    "C = čeština, E = English\n\n"
+    "Enter = začít sezení"
+)
+
+# Texty pro účastníka v obou jazycích (docs/experiment.md, „Texty pro účastníka“)
+TEXTS = {
+    "cs": {
+        "feedback_go": "Reakce {rt_ms} ms",
+        "feedback_false_start": "Předčasný start!",
+        "feedback_commission": "Start pod žlutou vlajkou!",
+        "feedback_inhibit": "Správně, bez startu",
+        "feedback_omission": "Bez reakce",
+        "recall_prompt": "Napište číslice a stiskněte Enter.",
+        "recall_correct": "Správně",
+        "recall_wrong": "Správně bylo: {digits}",
+        "effort_question": "Kolik duševního úsilí vás stál poslední blok?",
+        "effort_low": "1 = velmi, velmi nízké úsilí",
+        "effort_mid": "5 = ani nízké, ani vysoké",
+        "effort_high": "9 = velmi, velmi vysoké úsilí",
+        "block_pause": "Pauza. Až budete připraveni, stiskněte mezerník.",
+    },
+    "en": {
+        "feedback_go": "Reaction {rt_ms} ms",
+        "feedback_false_start": "False start!",
+        "feedback_commission": "Started under the yellow flag!",
+        "feedback_inhibit": "Correct, no start",
+        "feedback_omission": "No reaction",
+        "recall_prompt": "Type the digits and press Enter.",
+        "recall_correct": "Correct",
+        "recall_wrong": "The correct answer was: {digits}",
+        "effort_question": "How much mental effort did the last block take?",
+        "effort_low": "1 = very, very low mental effort",
+        "effort_mid": "5 = neither low nor high mental effort",
+        "effort_high": "9 = very, very high mental effort",
+        "block_pause": "Break. When you are ready, press the space bar.",
+    },
+}
 MACHINE_CODES = {"darwin": "mac", "win32": "win"}
 CSV_COLUMNS = (
     "participant",
@@ -81,6 +158,10 @@ SIM_ESCAPE_FLAG = (
 )
 SIM_ESCAPE_AT = 4
 SIM_NICK = "sim"
+SIM_LANGUAGE = "en"
+# Klávesy, které simulace „napíše“ na úvodních obrazovkách: příliš krátký nick (chyba),
+# Backspace, nick „sim“, přepnutí jazyka na EN, start sezení.
+SIM_INTRO_KEYS = ("x", "return", "backspace", "s", "i", "m", "return", "e", "return")
 SIM_DIR_NAME = "sim"
 # Simulace běží v menším okně uprostřed (jen pro ni, ostrý běh ho nedostane), aby nechala
 # volnou obrazovku. Okno je aspoň tak velké, aby se vešly lampy i vlajka s okrajem.

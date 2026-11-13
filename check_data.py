@@ -14,11 +14,13 @@ from pathlib import Path
 
 from config import (
     ANTICIPATION_THRESHOLD,
+    BLOCK_ORDERS,
     CSV_COLUMNS,
     DATA_DIR_NAME,
     FOREPERIODS,
     GO_OUTCOMES,
     KEYBOARD_BACKEND,
+    LANGUAGES,
     LOADS,
     LOG_SUFFIX,
     MACHINE_CODES,
@@ -26,12 +28,16 @@ from config import (
     N_BLOCKS,
     NOGO_OUTCOMES,
     OUTCOMES_WITH_RT,
+    PILOT_PREFIX,
     RESPONSE_WINDOW,
     SIM_DIR_NAME,
+    SIM_LANGUAGE,
+    SIM_NICK,
     SIM_PRESS_RT,
+    TEST_PREFIX,
     WINDOW_MODES,
 )
-from logic import companion_path, expected_outcome
+from logic import companion_path, expected_outcome, is_valid_nick, session_data_dir
 
 REQUIRED_META_KEYS = (
     "participant",
@@ -45,6 +51,7 @@ REQUIRED_META_KEYS = (
     "aborted",
     "simulated",
     "block_order",
+    "language",
     "seed",
     "effort_ratings",
     "planned_starts",
@@ -57,6 +64,7 @@ REQUIRED_META_KEYS = (
 )
 BOOL_TEXTS = ("True", "False")
 SIM_RESPONSES = ("early", "none", "escape", *SIM_PRESS_RT)
+SUBDIRS = (SIM_DIR_NAME, PILOT_PREFIX, TEST_PREFIX)
 BLOCK_TEXTS = tuple(str(block) for block in range(N_BLOCKS + 1))
 MS_PER_S = 1000
 
@@ -185,12 +193,22 @@ def check_meta(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]
 def check_files(csv_path: Path, meta: dict[str, object]) -> list[str]:
     """Ověří název a umístění souboru proti meta a existenci logu."""
     problems = []
-    in_sim_dir = csv_path.parent.name == SIM_DIR_NAME
-    if bool(meta.get("simulated")) != in_sim_dir:
+    simulated = bool(meta.get("simulated"))
+    expected = session_data_dir(Path(), simulated, str(meta.get("participant"))).name
+    actual = csv_path.parent.name if csv_path.parent.name in SUBDIRS else ""
+    if actual != expected:
         problems.append(
-            f"simulated={meta.get('simulated')}, ale soubor leží v {csv_path.parent.name}/ "
-            f"(simulace patří do {SIM_DIR_NAME}/, nic jiného tam)"
+            f"soubor leží v {actual or 'data'}/, ale patří do {expected or 'data'}/ "
+            f"(simulace patří do {SIM_DIR_NAME}/, pilot a testy podle nicku)"
         )
+    if not is_valid_nick(str(meta.get("participant"))):
+        problems.append(f"meta: nick {meta.get('participant')!r} nemá platný formát")
+    if meta.get("language") not in LANGUAGES:
+        problems.append(
+            f"meta: jazyk {meta.get('language')!r} není {'/'.join(LANGUAGES)}"
+        )
+    if meta.get("block_order") not in BLOCK_ORDERS:
+        problems.append(f"meta: pořadí bloků {meta.get('block_order')!r} není platné")
     if not meta.get("simulated"):
         if meta.get("keyboard_backend") != KEYBOARD_BACKEND:
             problems.append(f"ostré sezení nemá klávesnici {KEYBOARD_BACKEND}")
@@ -217,6 +235,11 @@ def check_simulation(meta: dict[str, object], rows: list[dict[str, str]]) -> lis
     if unknown:
         return [f"meta: neznámé odpovědi ve scénáři simulace {unknown}"]
     problems = []
+    if (meta.get("participant"), meta.get("language")) != (SIM_NICK, SIM_LANGUAGE):
+        problems.append(
+            f"simulace měla napsat nick {SIM_NICK!r} a zvolit jazyk {SIM_LANGUAGE!r}, "
+            f"v meta je {meta.get('participant')!r} a {meta.get('language')!r}"
+        )
     if "escape" in scenario:
         escape_at = scenario.index("escape") + 1
         if not meta["aborted"] or len(rows) != escape_at - 1:

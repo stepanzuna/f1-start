@@ -6,7 +6,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from check_data import check_row, check_rt, check_session
-from config import CSV_COLUMNS, LOG_SUFFIX, META_SUFFIX, SIM_DIR_NAME
+from config import (
+    CSV_COLUMNS,
+    LOG_SUFFIX,
+    META_SUFFIX,
+    SIM_DIR_NAME,
+    SIM_LANGUAGE,
+    SIM_NICK,
+)
 from logic import (
     companion_path,
     finish_meta,
@@ -21,9 +28,13 @@ SAMPLE_RT = {"go": 0.25, "anticipation": 0.05, "commission": 0.3}
 
 
 def write_session(tmp_path: Path, aborted: bool = False) -> Path:
-    """Zapíše platné sezení podle plánu (go starty se stiskem, no-go bez stisku)."""
+    """Zapíše platné sezení podle plánu (go starty se stiskem, no-go bez stisku).
+
+    Ve složce sim/ jako simulace s nickem „sim“, jinde jako ostré sezení s nickem „anna“.
+    """
     tmp_path.mkdir(parents=True, exist_ok=True)
-    csv_path = tmp_path / "test_mac_2026-11-13_0905.csv"
+    nick = SIM_NICK if tmp_path.name == SIM_DIR_NAME else "anna"
+    csv_path = tmp_path / f"{nick}_mac_2026-11-13_0905.csv"
     plan = make_plan()
     with csv_path.open("w", newline="", encoding="utf-8") as data_file:
         writer = csv.DictWriter(data_file, fieldnames=CSV_COLUMNS)
@@ -32,7 +43,7 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
             outcome = "inhibit" if start.is_nogo else "go"
             writer.writerow(
                 make_row(
-                    participant="test",
+                    participant=nick,
                     machine="mac",
                     start=start,
                     trial_index=trial_index,
@@ -43,7 +54,7 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
                 )
             )
     meta = make_meta(
-        participant="test",
+        participant=nick,
         machine="mac",
         started_at=SAMPLE_TIME,
         environment={
@@ -57,6 +68,8 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
         window_size=(3024, 1964),
         keyboard_backend="iohub",
         planned_starts=len(plan),
+        block_order="ABBA",
+        language="cs",
         simulated=False,
     )
     if not aborted:
@@ -66,13 +79,13 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
     return csv_path
 
 
-META = {"participant": "test", "machine": "mac"}
+META = {"participant": "anna", "machine": "mac"}
 
 
 def valid_row() -> dict[str, str]:
     """Jeden platný řádek CSV tak, jak ho vrátí csv.DictReader (vše jako text)."""
     return {
-        "participant": "test",
+        "participant": "anna",
         "machine": "mac",
         "load": "none",
         "timestamp": "2026-11-13T09:05:00+01:00",
@@ -197,6 +210,7 @@ def make_simulated(csv_path: Path, **changes: object) -> list[str]:
         "simulated": True,
         "sim_scenario": scenario,
         "keyboard_backend": "simulated",
+        "language": SIM_LANGUAGE,
     }
     write_meta(meta_path, meta | sim_meta | changes)
     return scenario
@@ -277,3 +291,23 @@ def test_real_session_needs_iohub_and_full_screen(tmp_path: Path) -> None:
     problems = check_session(csv_path)[1]
     assert any("klávesnici iohub" in p for p in problems)
     assert any("režim okna" in p for p in problems)
+
+
+def test_test_nick_belongs_to_test_dir(tmp_path: Path) -> None:
+    """Sezení s nickem test… přímo v data/ je problém (patří do data/test/)."""
+    csv_path = write_session(tmp_path)
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    write_meta(meta_path, meta | {"participant": "test2"})
+    assert any("patří do test/" in p for p in check_session(csv_path)[1])
+
+
+def test_invalid_language_and_block_order(tmp_path: Path) -> None:
+    """Neznámý jazyk nebo pořadí bloků v meta je problém."""
+    csv_path = write_session(tmp_path)
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    write_meta(meta_path, meta | {"language": "de", "block_order": "AABB"})
+    problems = check_session(csv_path)[1]
+    assert any("jazyk 'de'" in p for p in problems)
+    assert any("pořadí bloků 'AABB'" in p for p in problems)

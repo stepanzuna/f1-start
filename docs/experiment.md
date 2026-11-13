@@ -83,24 +83,36 @@ Pořadí vyhodnocení stisku v okně odpovědi: `rt < 0` → `jump_start`; no-go
 
 ## Zpětná vazba v pauze (stejná ve všech podmínkách)
 
-- `go`: „Reakce 213 ms“
-- `jump_start`, `anticipation`: „Předčasný start!“
-- `commission`: „Start pod žlutou vlajkou!“
-- `inhibit`: „Správně, bez startu“
-- `omission`: „Bez reakce“
+| výsledek | česky | anglicky |
+|---|---|---|
+| `go` | „Reakce 213 ms“ | “Reaction 213 ms” |
+| `jump_start`, `anticipation` | „Předčasný start!“ | “False start!” |
+| `commission` | „Start pod žlutou vlajkou!“ | “Started under the yellow flag!” |
+| `inhibit` | „Správně, bez startu“ | “Correct, no start” |
+| `omission` | „Bez reakce“ | “No reaction” |
 
 ## Úvodní obrazovka a nick
 
-- Experimentátor zadá nick účastníka přímo v okně PsychoPy. Doporučení: textový vstup napsat
-  jako vlastní funkci (čtení kláves v každém snímku), protože stejný mechanismus poslouží
-  i pro vybavení číslic. Názvy kláves z iohub nejdřív ověř výpisem.
+- Dvě obrazovky pro experimentátora (česky, krok 4):
+  1. **Nick:** experimentátor napíše nick a potvrdí Enterem.
+  2. **Nastavení:** ukáže nick, počítač, přiřazené pořadí bloků a jazyk účastníka.
+     `A` = ABBA, `B` = BAAB, `C` = čeština, `E` = English, Enter = začít sezení.
+     Volby jsou na zvláštní obrazovce, protože písmena A/B/C/E se dají psát i do nicku.
+- Textový vstup čte znaky z `KeyPress.code` (napsaný znak včetně Shiftu a rozložení
+  klávesnice), ovládací klávesy z `KeyPress.name` (`return`, `num_enter`, `backspace`,
+  `escape`; ověřeno ve zdrojácích iohub pro macOS i Windows). Česká horní řada bez Shiftu
+  („ěščř…“) se do nicku nepíše, číslice jdou se Shiftem nebo z numerické klávesnice.
 - Nick: malá písmena a–z, číslice, `-` a `_`, délka 2–16 znaků. Nesmí to být skutečné jméno.
 - Pokud v `data/` už existuje soubor se stejným nickem: hláška „Nick už existuje.
   Enter = přesto pokračovat, Backspace = opravit“. Nový soubor má jiný čas v názvu,
   nic se nepřepíše.
 - Pořadí bloků: program spočítá dokončená ostrá sezení v `data/` na tomto počítači
   (meta s `aborted = False`, bez pilotu, testů a simulace). Sudý počet → ABBA, lichý → BAAB.
-  Úvodní obrazovka přiřazené pořadí ukáže a experimentátor ho může klávesou A/B přepsat.
+  Obrazovka nastavení přiřazené pořadí ukáže a experimentátor ho může klávesou A/B přepsat.
+- Jazyk účastníka (rozhodnuto 13. 11. 2026): čeština nebo angličtina, volí experimentátor
+  na obrazovce nastavení (výchozí čeština). Celé sezení běží v jednom jazyce, ukládá se do meta
+  (`language` = `cs` / `en`) a v analýze může být faktor. Dva jazyky naráz se nezobrazují,
+  aby zpětná vazba (čtená během 1 s pauzy pod paměťovou zátěží) zůstala krátká.
 - Pilotní sezení: nick začínající `pilot` se ukládá do `data/pilot/` a do střídání se nepočítá.
 - Testovací běhy při vývoji: nick začínající `test` se ukládá do `data/test/` a do střídání
   se nepočítá (rozhodnuto 13. 11. 2026). Starší soubory `data/test_*` z kroku 3 před sběrem dat
@@ -119,12 +131,21 @@ Pořadí vyhodnocení stisku v okně odpovědi: `rt < 0` → `jump_start`; no-go
 
 ## Texty pro účastníka (rozhodnuto 13. 11. 2026)
 
-- Oslovení: vykání.
-- Paasova škála po každém bloku: otázka „Kolik duševního úsilí vás stál poslední blok?“,
-  odpověď klávesou 1–9 (horní řada i numerická klávesnice). Popisky: 1 = „velmi, velmi nízké
-  úsilí“, 5 = „ani nízké, ani vysoké“, 9 = „velmi, velmi vysoké úsilí“.
+Všechny texty pro účastníka jsou česky i anglicky v `TEXTS` v `config.py` (test hlídá, že oba
+jazyky mají stejné texty). Anglické znění doplněno 13. 11. 2026, překlad ke kontrole.
+
+- Oslovení: vykání (EN: neutrální „you“).
+- Paasova škála po každém bloku: otázka „Kolik duševního úsilí vás stál poslední blok?“
+  (“How much mental effort did the last block take?”), odpověď klávesou 1–9 (horní řada
+  i numerická klávesnice). Popisky: 1 = „velmi, velmi nízké úsilí“ (“very, very low mental
+  effort”), 5 = „ani nízké, ani vysoké“ (“neither low nor high mental effort”),
+  9 = „velmi, velmi vysoké úsilí“ (“very, very high mental effort”).
 - Pauza mezi bloky: bez pevné délky, text „Pauza. Až budete připraveni, stiskněte mezerník.“
-- Texty instrukcí: Claude je sepíše do tohoto dokumentu ke schválení před krokem 9.
+  (“Break. When you are ready, press the space bar.”)
+- Vybavení číslic: „Napište číslice a stiskněte Enter.“ (“Type the digits and press Enter.”),
+  v testovacím kole „Správně“ / „Správně bylo: 4 7“ (“Correct” / “The correct answer was: 4 7”).
+- Texty instrukcí: Claude je sepíše do tohoto dokumentu (česky i anglicky) ke schválení
+  před krokem 9.
 
 ## Data
 
@@ -159,14 +180,14 @@ Sloupce CSV (jeden řádek = jeden start):
 
 Metadata `…_meta.json`: nick, stroj, `platform.platform()`, verze Pythonu a PsychoPy,
 git commit (`git rev-parse --short HEAD`), začátek a konec sezení, `aborted` (Escape),
-pořadí bloků, seed, naměřená frekvence, režim okna, backend klávesnice,
+pořadí bloků, jazyk účastníka (`language`), seed, naměřená frekvence, režim okna, backend klávesnice,
 kopie všech časových konstant, hodnocení námahy po blocích, vypadlé snímky celkem.
 Doplněno 13. 11. 2026: skutečná velikost okna v px, `simulated` (režim simulace),
 `planned_starts` (počet startů v plánu sezení), u git commitu přípona `-dirty`, když běžel
 kód s necommitnutými změnami. `keyboard_backend` je backend, který PsychoPy skutečně použil;
 když to není `iohub`, program skončí ještě před otevřením okna.
 
-Meta se zapíše hned po změření frekvence s `aborted = true` a `ended_at = null`. Na řádném konci
+Meta se zapíše po obrazovce nastavení (před prvním startem) s `aborted = true` a `ended_at = null`. Na řádném konci
 sezení se přepíše (`aborted = false`, konec, vypadlé snímky celkem). Přerušené sezení tak má
 vždy `aborted = true`, ať skončilo Escapem, pádem programu, nebo vypnutím počítače.
 

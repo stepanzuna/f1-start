@@ -129,10 +129,20 @@ def test_scenario_exhausted() -> None:
     assert drive_start(kb, make_start(False)) == "omission"
 
 
-def test_session_data_dir() -> None:
-    """Simulace ukládá do podsložky sim/, ostatní přímo do data/."""
-    assert session_data_dir(Path("data"), simulated=True) == Path("data") / SIM_DIR_NAME
-    assert session_data_dir(Path("data"), simulated=False) == Path("data")
+@pytest.mark.parametrize(
+    ("simulated", "nick", "subdir"),
+    [
+        (True, "sim", SIM_DIR_NAME),
+        (True, "pilot1", SIM_DIR_NAME),
+        (False, "pilot1", "pilot"),
+        (False, "test", "test"),
+        (False, "testik_2", "test"),
+        (False, "anna_k", ""),
+    ],
+)
+def test_session_data_dir(simulated: bool, nick: str, subdir: str) -> None:
+    """Simulace, pilot a testy do podsložek, ostrá sezení přímo do data/."""
+    assert session_data_dir(Path("data"), simulated, nick) == Path("data") / subdir
 
 
 def test_escape_in_scenario() -> None:

@@ -109,11 +109,15 @@ a 5 testovacích startů proběhne bez vypadlých snímků.
 
 ## Krok 4: Úvodní obrazovka s nickem
 
-- [ ] znovupoužitelná funkce pro textový vstup v okně (Enter potvrdí, Backspace maže)
-- [ ] validace nicku a kontrola, jestli už v `data/` existuje (Enter = přesto pokračovat,
+- [x] znovupoužitelná funkce pro textový vstup v okně (Enter potvrdí, Backspace maže;
+      `edit_text` a `nick_input_key` v `logic.py`, znaky z `KeyPress.code`)
+- [x] validace nicku a kontrola, jestli už v `data/` existuje (Enter = přesto pokračovat,
       Backspace = opravit)
-- [ ] automatické přiřazení pořadí bloků (střídání na tomto počítači), zobrazení a přepsání klávesou A/B
-- [ ] nick začínající `pilot` ukládat do `data/pilot/`, `test` do `data/test/`, obojí mimo střídání
+- [x] automatické přiřazení pořadí bloků (střídání na tomto počítači), zobrazení a přepsání klávesou A/B
+- [x] volba jazyka účastníka (C/E), `language` v meta, texty pro účastníka česky i anglicky v `TEXTS`
+- [x] simulace napíše nick (s chybou a Backspace) a přepne jazyk, `check_data.py` to ověří
+- [x] nick začínající `pilot` ukládat do `data/pilot/`, `test` do `data/test/`, obojí mimo střídání
+- [ ] (ručně) psaní nicku na skutečné klávesnici, obě obrazovky, dvě dokončená sezení po sobě
 
 Hotovo když: nick se objeví v názvu CSV i ve sloupci `participant`, neplatný nick program odmítne
 a dvě dokončená sezení po sobě dostanou opačné pořadí bloků.

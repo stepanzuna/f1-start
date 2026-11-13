@@ -103,6 +103,8 @@ def sample_meta() -> dict[str, object]:
         window_size=(3024, 1964),
         keyboard_backend="iohub",
         planned_starts=16,
+        block_order="ABBA",
+        language="cs",
         simulated=False,
     )
 
@@ -194,6 +196,8 @@ def test_meta_with_numpy_values_is_json(tmp_path: Path) -> None:
         window_size=(int(size[0]), int(size[1])),
         keyboard_backend="iohub",
         planned_starts=16,
+        block_order="ABBA",
+        language="cs",
         simulated=False,
     )
     write_meta(tmp_path / "m.json", meta)

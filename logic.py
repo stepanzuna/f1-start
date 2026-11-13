@@ -4,13 +4,19 @@ import itertools
 import json
 import random
 import subprocess
-from dataclasses import dataclass
+from collections import deque
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 from config import (
     ANTICIPATION_THRESHOLD,
+    BACKSPACE_KEY,
+    BLOCK_ORDER_KEYS,
+    BLOCK_ORDERS,
+    ENTER_KEYS,
     FLAG_HEIGHT,
     FLAG_POS,
     FLAG_WIDTH,
@@ -19,10 +25,20 @@ from config import (
     LAMP_RADIUS,
     LAMP_SPACING,
     LAMP_Y,
+    LANGUAGE_KEYS,
     LIGHT_INTERVAL,
     MACHINE_CODES,
+    META_SUFFIX,
     N_LAMPS,
+    NICK_CHARS,
+    NICK_EXISTS,
+    NICK_INVALID,
+    NICK_MAX_LENGTH,
+    NICK_MIN_LENGTH,
     NOGO_PER_FOREPERIOD,
+    ORDER_AUTO,
+    ORDER_MANUAL,
+    PILOT_PREFIX,
     RESPONSE_WINDOW,
     REST_INTERVAL,
     SIM_DIR_NAME,
@@ -36,6 +52,7 @@ from config import (
     SIM_PRESS_RT,
     SIM_WINDOW_MARGIN,
     SIM_WINDOW_SCALE,
+    TEST_PREFIX,
 )
 
 
@@ -177,6 +194,8 @@ def make_meta(
     window_size: tuple[int, int],
     keyboard_backend: str,
     planned_starts: int,
+    block_order: str,
+    language: str,
     simulated: bool,
 ) -> dict[str, object]:
     """Sestaví metadata sezení; dokud sezení řádně neskončí, je označené jako přerušené."""
@@ -188,8 +207,9 @@ def make_meta(
         "ended_at": None,
         "aborted": True,
         "simulated": simulated,
-        # Pořadí bloků doplní krok 4, seed krok 7, hodnocení námahy krok 9.
-        "block_order": None,
+        "block_order": block_order,
+        "language": language,
+        # Seed doplní krok 7, hodnocení námahy krok 9.
         "seed": None,
         "effort_ratings": [],
         "planned_starts": planned_starts,
@@ -243,9 +263,134 @@ def parse_args(args: list[str]) -> tuple[bool, int | None]:
     return bool(args), escape_at
 
 
-def session_data_dir(data_root: Path, simulated: bool) -> Path:
-    """Složka pro data sezení: simulace do vlastní podsložky, mimo ostrá data."""
-    return data_root / SIM_DIR_NAME if simulated else data_root
+def session_data_dir(data_root: Path, simulated: bool, nick: str) -> Path:
+    """Složka pro data sezení: simulace, pilot a testy do podsložek, mimo ostrá data."""
+    if simulated:
+        return data_root / SIM_DIR_NAME
+    for prefix in (PILOT_PREFIX, TEST_PREFIX):
+        if nick.startswith(prefix):
+            return data_root / prefix
+    return data_root
+
+
+def edit_text(text: str, name: str, char: str, allowed: str, max_length: int) -> str:
+    """Upraví psaný text jedním stiskem: Backspace maže, povolený znak se připíše."""
+    if name == BACKSPACE_KEY:
+        return text[:-1]
+    if len(char) == 1 and char in allowed and len(text) < max_length:
+        return text + char
+    return text
+
+
+def is_valid_nick(nick: str) -> bool:
+    """Nick: 2–16 znaků, malá písmena a–z, číslice, - a _ (docs/experiment.md)."""
+    length_ok = NICK_MIN_LENGTH <= len(nick) <= NICK_MAX_LENGTH
+    return length_ok and all(char in NICK_CHARS for char in nick)
+
+
+def genuine_presses(keys: list, still_down: object | None) -> list:
+    """Vynechá „fantomové“ stisky, které PsychoPy vyrobí z puštění klávesy po Shiftu.
+
+    Puštění se páruje se stiskem podle napsaného znaku. Když Shift pustíte dřív než
+    klávesu (Shift+minus = „_“, puštění = „-“), pár se nenajde a vznikne nový stisk.
+    Skutečný stisk je mezi drženými klávesami (still_down) nebo už má délku stisku.
+    still_down=None (simulace) = všechny stisky jsou skutečné.
+    """
+    if still_down is None:
+        return keys
+    return [
+        key
+        for key in keys
+        if getattr(key, "duration", None) is not None
+        or any(down is key for down in still_down)
+    ]
+
+
+@dataclass(frozen=True)
+class NickInput:
+    """Stav obrazovky s nickem: napsaný text, hláška a jestli se čeká na potvrzení."""
+
+    text: str = ""
+    message: str = ""
+    awaiting_confirmation: bool = False
+    done: bool = False
+
+
+def nick_input_key(
+    state: NickInput, name: str, char: str, exists: Callable[[str], bool]
+) -> NickInput:
+    """Zpracuje jednu klávesu na obrazovce s nickem a vrátí nový stav.
+
+    Enter ověří nick; existující nick chce druhý Enter. Jakákoli úprava textu
+    (i Backspace = „opravit“) hlášku i čekání na potvrzení zruší.
+    """
+    if name in ENTER_KEYS:
+        if not is_valid_nick(state.text):
+            return replace(state, message=NICK_INVALID, awaiting_confirmation=False)
+        if state.awaiting_confirmation or not exists(state.text):
+            return replace(state, done=True)
+        return replace(
+            state,
+            message=NICK_EXISTS.format(nick=state.text),
+            awaiting_confirmation=True,
+        )
+    text = edit_text(state.text, name, char, NICK_CHARS, NICK_MAX_LENGTH)
+    if text == state.text:
+        return state  # Shift, Caps Lock apod. hlášku ani potvrzení nezruší
+    return NickInput(text=text)
+
+
+def nick_from_filename(name: str) -> str | None:
+    """Vytáhne nick z názvu souboru {nick}_{stroj}_{YYYY-MM-DD}_{HHMM}…; nick smí mít „_“."""
+    parts = Path(name).stem.split("_")
+    if len(parts) < 4 or parts[-3] not in MACHINE_CODES.values():
+        return None
+    return "_".join(parts[:-3])
+
+
+def nick_exists(data_dir: Path, nick: str) -> bool:
+    """Zjistí, jestli ve složce dat už je sezení se stejným nickem."""
+    return any(nick_from_filename(path.name) == nick for path in data_dir.glob("*.csv"))
+
+
+def count_completed_sessions(data_dir: Path, machine: str) -> int:
+    """Spočítá dokončená ostrá sezení tohoto počítače (meta s aborted = false) v data/.
+
+    Nepočítá pilot, testy ani simulace (ani kdyby omylem ležely přímo v data/) a data
+    zkopírovaná z jiného počítače.
+    """
+    count = 0
+    for meta_path in data_dir.glob("*" + META_SUFFIX):
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        simulated = bool(meta.get("simulated"))
+        nick = str(meta.get("participant", ""))
+        is_main = session_data_dir(data_dir, simulated, nick) == data_dir
+        if meta.get("aborted") is False and is_main and meta.get("machine") == machine:
+            count += 1
+    return count
+
+
+def assign_block_order(completed_sessions: int) -> str:
+    """Střídání pořadí bloků na tomto počítači: sudý počet → ABBA, lichý → BAAB."""
+    return BLOCK_ORDERS[completed_sessions % len(BLOCK_ORDERS)]
+
+
+def settings_order_note(block_order: str, auto_order: str, completed: int) -> str:
+    """Poznámka k pořadí bloků: automatické, nebo ručně přepsané."""
+    if block_order == auto_order:
+        return ORDER_AUTO.format(completed=completed)
+    return ORDER_MANUAL.format(auto_order=auto_order)
+
+
+def apply_settings_key(name: str, block_order: str, language: str) -> tuple[str, str]:
+    """Klávesa na obrazovce nastavení: A/B mění pořadí bloků, C/E jazyk účastníka."""
+    return (
+        BLOCK_ORDER_KEYS.get(name, block_order),
+        LANGUAGE_KEYS.get(name, language),
+    )
 
 
 def make_sim_scenario(plan: list[Start], escape_at: int | None = None) -> list[str]:
@@ -292,24 +437,39 @@ def expected_outcome(response: str, is_nogo: bool) -> str:
 
 @dataclass
 class SimulatedKeyPress:
-    """Simulovaný stisk se stejnými atributy, jaké program čte z KeyPress v PsychoPy."""
+    """Simulovaný stisk se stejnými atributy, jaké program čte z KeyPress v PsychoPy.
+
+    name je název klávesy (např. "return"), code napsaný znak (jako char z iohub).
+    """
 
     name: str
     rt: float | None
+    code: str = ""
+
+
+def sim_key(name: str) -> SimulatedKeyPress:
+    """Simulovaný stisk klávesy na obrazovce s textem (písmeno, Enter, Backspace)."""
+    code = name if len(name) == 1 else {"return": "\n"}.get(name, "")
+    return SimulatedKeyPress(name, None, code)
 
 
 class SimulatedKeyboard:
     """Falešná klávesnice pro simulaci: stiskne podle scénáře, čas počítá ve snímcích.
 
-    Napodobuje tu část keyboard.Keyboard, kterou program používá: clearEvents() na začátku
-    startu vezme další odpověď ze scénáře, clock.reset() (volané při zhasnutí) spustí
-    měření reakce a getKeys() se volá jednou za snímek.
+    Napodobuje tu část keyboard.Keyboard, kterou program používá: první getKeys() s mezerníkem
+    po clearEvents() (začátek startu) vezme další odpověď ze scénáře, clock.reset() (volané
+    při zhasnutí) spustí měření reakce, getKeys() bez keyList vrací klávesy napsané
+    na obrazovkách s textem. getKeys() se volá jednou za snímek.
     """
 
-    def __init__(self, scenario: list[str], rate: float) -> None:
+    def __init__(
+        self, scenario: list[str], rate: float, typed_keys: list[str] | None = None
+    ) -> None:
         self._responses = iter(scenario)
+        self._typed = deque(typed_keys or [])
         self._rate = rate
         self._response: str | None = None
+        self._started = False
         self._polls_since_clear = 0
         self._polls_since_reset: int | None = None
         self.clock = SimpleNamespace(reset=self._reset)
@@ -319,8 +479,9 @@ class SimulatedKeyboard:
         return SIM_KEYBOARD_BACKEND
 
     def clearEvents(self) -> None:
-        """Začátek startu: připraví další odpověď ze scénáře."""
-        self._response = next(self._responses, None)
+        """Smaže čekající stisky; další start si vezme novou odpověď ze scénáře."""
+        self._response = None
+        self._started = False
         self._polls_since_clear = 0
         self._polls_since_reset = None
 
@@ -348,9 +509,19 @@ class SimulatedKeyboard:
         return None
 
     def getKeys(
-        self, keyList: list[str], waitRelease: bool = False
+        self, keyList: list[str] | None = None, waitRelease: bool = False
     ) -> list[SimulatedKeyPress]:
-        """Jedno čtení klávesnice za snímek, stejné volání jako u keyboard.Keyboard."""
+        """Jedno čtení klávesnice za snímek, stejné volání jako u keyboard.Keyboard.
+
+        Bez keyList (obrazovky s textem) vrátí další napsanou klávesu. S mezerníkem
+        v keyList jde o start: první čtení po clearEvents vezme odpověď ze scénáře.
+        Proto obrazovky mimo start čtou klávesy vždy bez keyList (viz CLAUDE.md).
+        """
+        if keyList is None:
+            return [sim_key(self._typed.popleft())] if self._typed else []
+        if "space" in keyList and not self._started:
+            self._response = next(self._responses, None)
+            self._started = True
         press = self._due_press()
         self._polls_since_clear += 1
         if self._polls_since_reset is not None:

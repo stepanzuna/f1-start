@@ -2,6 +2,7 @@ import csv
 import os
 import platform
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -10,39 +11,57 @@ from psychopy import logging
 
 from config import (
     CSV_COLUMNS,
+    CURSOR,
     DATA_DIR_NAME,
+    DEFAULT_LANGUAGE,
     DROPPED_FRAME_WARNINGS_MAX,
+    ENTER_KEYS,
     EXPECTED_FRAME_RATE,
     FLAG_COLOR,
     FLAG_HEIGHT,
     FLAG_POS,
     FLAG_WIDTH,
+    FOLDER_NOTE,
     FRAME_RATE_TOLERANCE,
+    INPUT_Y,
     KEYBOARD_BACKEND,
     LAMP_RADIUS,
     LAMP_SPACING,
     LAMP_Y,
+    LANGUAGE_NAMES,
     LIGHT_INTERVAL,
     LOG_SUFFIX,
+    MESSAGE_Y,
     META_SUFFIX,
     N_LAMPS,
+    NICK_PROMPT,
     OFF,
     ON,
-    PLACEHOLDER_NICK,
+    PROMPT_Y,
     RESPONSE_WINDOW,
     REST_INTERVAL,
-    SIM_NICK,
+    SETTINGS_SCREEN,
+    SIM_INTRO_KEYS,
     SIM_WINDOW_MODE,
+    TEXT_COLOR,
+    TEXT_HEIGHT,
+    TEXT_WRAP_SHARE,
+    WARNING_COLOR,
     WINDOW_MODE,
     WINDOW_MODES,
 )
 from logic import (
+    NickInput,
     SimulatedKeyboard,
     SimulatedKeyPress,
     Start,
+    apply_settings_key,
+    assign_block_order,
     classify_press,
     companion_path,
+    count_completed_sessions,
     finish_meta,
+    genuine_presses,
     git_commit,
     machine_code,
     make_data_path,
@@ -50,9 +69,12 @@ from logic import (
     make_plan,
     make_row,
     make_sim_scenario,
+    nick_exists,
+    nick_input_key,
     outcome_without_press,
     parse_args,
     session_data_dir,
+    settings_order_note,
     sim_window_size,
     write_meta,
 )
@@ -238,7 +260,8 @@ def open_keyboard() -> keyboard.Keyboard:
 def measure_frame_rate(win: visual.Window) -> float:
     """Změří obnovovací frekvenci, při chybě nebo nečekané hodnotě ukončí program.
 
-    Důvod ukončení jde přes logging, takže se objeví v terminálu i v logu sezení.
+    Měří se hned po otevření okna, před zadáním nicku, takže sezení ještě nemá log:
+    důvod ukončení jde přes logging do terminálu.
     """
     rate = win.getActualFrameRate()
     if rate is None:
@@ -265,6 +288,92 @@ def describe_environment(project_dir: Path) -> dict[str, str]:
     }
 
 
+def make_text(
+    win: visual.Window, y: int = 0, color: str = TEXT_COLOR
+) -> visual.TextStim:
+    """Vytvoří prázdný text pro obrazovky s textem, zalomený podle šířky okna."""
+    return visual.TextStim(
+        win,
+        text="",
+        pos=(0, y),
+        height=TEXT_HEIGHT,
+        wrapWidth=win.size[0] * TEXT_WRAP_SHARE,
+        color=color,
+        units="pix",
+    )
+
+
+def read_screen_keys(win: visual.Window, kb: AnyKeyboard) -> list[AnyKeyPress]:
+    """Klávesy na obrazovce s textem: všechny (bez keyList), bez fantomů, s Escapem.
+
+    _keysStillDown je interní seznam držených kláves v PsychoPy 2026.2 (viz genuine_presses).
+    """
+    keys = kb.getKeys(waitRelease=False)
+    quit_if_escape(keys, win)
+    return genuine_presses(keys, getattr(kb, "_keysStillDown", None))
+
+
+def set_text(stim: visual.TextStim, text: str) -> None:
+    """Změní text, jen když je jiný (překreslení textu v PsychoPy je pomalé)."""
+    if stim.text != text:
+        stim.text = text
+
+
+def ask_nick(win: visual.Window, kb: AnyKeyboard, exists: Callable[[str], bool]) -> str:
+    """Obrazovka s nickem: psaní, ověření a potvrzení už existujícího nicku."""
+    prompt = make_text(win, PROMPT_Y)
+    set_text(prompt, NICK_PROMPT)
+    typed = make_text(win, INPUT_Y)
+    message = make_text(win, MESSAGE_Y, WARNING_COLOR)
+    state = NickInput()
+    kb.clearEvents()
+    while not state.done:
+        for key in read_screen_keys(win, kb):
+            state = nick_input_key(state, key.name, key.code or "", exists)
+            if state.done:
+                break
+        set_text(typed, state.text + CURSOR)
+        set_text(message, state.message)
+        for stim in (prompt, typed, message):
+            stim.draw()
+        win.flip()
+    return state.text
+
+
+def ask_settings(
+    win: visual.Window,
+    kb: AnyKeyboard,
+    nick: str,
+    machine: str,
+    completed: int,
+    folder: str,
+) -> tuple[str, str]:
+    """Obrazovka nastavení: pořadí bloků (A/B) a jazyk účastníka (C/E), Enter = začít."""
+    auto_order = assign_block_order(completed)
+    block_order = auto_order
+    language = DEFAULT_LANGUAGE
+    screen = make_text(win)
+    kb.clearEvents()
+    while True:
+        for key in read_screen_keys(win, kb):
+            if key.name in ENTER_KEYS:
+                return block_order, language
+            block_order, language = apply_settings_key(key.name, block_order, language)
+        set_text(
+            screen,
+            SETTINGS_SCREEN.format(
+                nick=nick,
+                machine=machine,
+                folder=FOLDER_NOTE[folder],
+                block_order=block_order,
+                order_note=settings_order_note(block_order, auto_order, completed),
+                language_name=LANGUAGE_NAMES[language],
+            ),
+        )
+        screen.draw()
+        win.flip()
+
+
 def main() -> None:
     try:
         simulated, escape_at = parse_args(sys.argv[1:])
@@ -277,25 +386,12 @@ def main() -> None:
     window_mode = SIM_WINDOW_MODE if simulated else WINDOW_MODE
     exit_if_hidden_launch(window_mode)
     machine = machine_code(sys.platform)
-    nick = SIM_NICK if simulated else PLACEHOLDER_NICK
-    started_at = datetime.now().astimezone()
     project_dir = Path(__file__).parent
+    data_root = project_dir / DATA_DIR_NAME
 
-    data_dir = session_data_dir(project_dir / DATA_DIR_NAME, simulated)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    data_path = make_data_path(data_dir, nick, machine, started_at)
-    if data_path.exists():
-        sys.exit(
-            f"Soubor {data_path.name} už existuje (stejný nick ve stejné minutě).\n"
-            "Počkej minutu a spusť experiment znovu."
-        )
-    meta_path = companion_path(data_path, META_SUFFIX)
-    log_path = companion_path(data_path, LOG_SUFFIX)
-    logging.LogFile(str(log_path), level=logging.WARNING, filemode="w")
     real_kb = None if simulated else open_keyboard()
     # Bez toho PsychoPy po 5 vypadlých snímcích přestane varovat a log by je nezachytil.
     visual.window.reportNDroppedFrames = DROPPED_FRAME_WARNINGS_MAX
-
     win = open_window(window_mode)
     logging.console.setLevel(logging.WARNING)
     rate = measure_frame_rate(win)
@@ -305,11 +401,47 @@ def main() -> None:
         f"frekvence {rate:.2f} Hz{', SIMULACE' if simulated else ''}",
         flush=True,
     )
-    print(f"data: {data_path}", flush=True)
 
     plan = make_plan()
     scenario = make_sim_scenario(plan, escape_at) if simulated else None
-    kb = SimulatedKeyboard(scenario, rate) if simulated else real_kb
+    kb = (
+        SimulatedKeyboard(scenario, rate, list(SIM_INTRO_KEYS))
+        if simulated
+        else real_kb
+    )
+
+    def exists(nick: str) -> bool:
+        """Existuje už sezení s tímto nickem? V simulaci se nekontroluje."""
+        return not simulated and nick_exists(
+            session_data_dir(data_root, simulated, nick), nick
+        )
+
+    nick = ask_nick(win, kb, exists)
+    data_dir = session_data_dir(data_root, simulated, nick)
+    completed = count_completed_sessions(data_root, machine)
+    block_order, language = ask_settings(
+        win,
+        kb,
+        nick,
+        machine,
+        completed,
+        "" if data_dir == data_root else data_dir.name,
+    )
+
+    started_at = datetime.now().astimezone()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    data_path = make_data_path(data_dir, nick, machine, started_at)
+    if data_path.exists():
+        win.close()
+        sys.exit(
+            f"Soubor {data_path.name} už existuje (stejný nick ve stejné minutě).\n"
+            "Počkej minutu a spusť experiment znovu."
+        )
+    meta_path = companion_path(data_path, META_SUFFIX)
+    log_path = companion_path(data_path, LOG_SUFFIX)
+    logging.LogFile(str(log_path), level=logging.WARNING, filemode="w")
+    print(f"data: {data_path}, pořadí {block_order}, jazyk {language}", flush=True)
+
     meta = make_meta(
         participant=nick,
         machine=machine,
@@ -320,6 +452,8 @@ def main() -> None:
         window_size=window_size,
         keyboard_backend=kb.getBackend(),
         planned_starts=len(plan),
+        block_order=block_order,
+        language=language,
         simulated=simulated,
     )
     if simulated:
