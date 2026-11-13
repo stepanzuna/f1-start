@@ -1,6 +1,7 @@
 import csv
 import os
 import platform
+import random
 import sys
 from collections.abc import Callable
 from datetime import datetime
@@ -14,6 +15,9 @@ from config import (
     CURSOR,
     DATA_DIR_NAME,
     DEFAULT_LANGUAGE,
+    DIGITS_BLANK,
+    DIGITS_DURATION,
+    DIGITS_HEIGHT,
     DROPPED_FRAME_WARNINGS_MAX,
     ENTER_KEYS,
     EXPECTED_FRAME_RATE,
@@ -43,12 +47,12 @@ from config import (
     RESPONSE_WINDOW,
     REST_INTERVAL,
     SETTINGS_SCREEN,
-    SIM_INTRO_KEYS,
     SIM_SCREENS_SUFFIX,
     SIM_WINDOW_MODE,
     TEXT_COLOR,
     TEXT_HEIGHT,
     TEXT_WRAP_SHARE,
+    TEXTS,
     WARNING_COLOR,
     WINDOW_MODE,
     WINDOW_MODES,
@@ -60,19 +64,24 @@ from logic import (
     Start,
     apply_settings_key,
     assign_block_order,
+    assign_sets,
     classify_press,
     companion_path,
     count_completed_sessions,
+    edit_recall,
     feedback_text,
     finish_meta,
     genuine_presses,
     git_commit,
+    group_sets,
     machine_code,
     make_data_path,
     make_meta,
     make_plan,
     make_row,
+    make_set_digits,
     make_sim_scenario,
+    make_sim_typed_keys,
     nick_exists,
     nick_input_key,
     outcome_without_press,
@@ -196,8 +205,62 @@ def show_pause(
         draw_lamps(lamps, 0)
         feedback.draw()
         if i == 0 and capture_path is not None:
-            win.getMovieFrame(buffer="back")
-            win.saveMovieFrames(str(capture_path))
+            save_frame(win, capture_path)
+        win.flip()
+
+
+def save_frame(win: visual.Window, path: Path) -> None:
+    """Uloží nakreslený (ještě nezobrazený) snímek okna jako obrázek (jen simulace)."""
+    win.getMovieFrame(buffer="back")
+    win.saveMovieFrames(str(path))
+
+
+def show_digits(
+    win: visual.Window,
+    kb: AnyKeyboard,
+    digits_stim: visual.TextStim,
+    digits: str,
+    rate: float,
+    capture_path: Path | None = None,
+) -> None:
+    """Číslice sady na DIGITS_DURATION, pak prázdná obrazovka na DIGITS_BLANK."""
+    set_text(digits_stim, " ".join(digits))
+    for i in range(frames(DIGITS_DURATION, rate)):
+        quit_if_escape(kb.getKeys(keyList=["escape"], waitRelease=False), win)
+        digits_stim.draw()
+        if i == 0 and capture_path is not None:
+            save_frame(win, capture_path)
+        win.flip()
+    for _ in range(frames(DIGITS_BLANK, rate)):
+        quit_if_escape(kb.getKeys(keyList=["escape"], waitRelease=False), win)
+        win.flip()
+
+
+def ask_recall(
+    win: visual.Window,
+    kb: AnyKeyboard,
+    prompt: visual.TextStim,
+    typed: visual.TextStim,
+    prompt_text: str,
+    n_digits: int,
+    capture_path: Path | None = None,
+) -> str:
+    """Vybavení: účastník napíše číslice (bez časového limitu), Enter potvrdí."""
+    set_text(prompt, prompt_text)
+    answer = ""
+    kb.clearEvents()
+    first_frame = True
+    while True:
+        for key in read_screen_keys(win, kb):
+            if key.name in ENTER_KEYS:
+                return answer
+            answer = edit_recall(answer, key.name, key.code or "", n_digits)
+        set_text(typed, " ".join(answer + CURSOR))
+        prompt.draw()
+        typed.draw()
+        if first_frame and capture_path is not None:
+            save_frame(win, capture_path)
+        first_frame = False
         win.flip()
 
 
@@ -420,10 +483,13 @@ def main() -> None:
         flush=True,
     )
 
-    plan = make_plan()
+    plan = assign_sets(make_plan())
+    set_digits = make_set_digits(plan, random.Random())  # seed doplní krok 7
     scenario = make_sim_scenario(plan, escape_at) if simulated else None
     kb = (
-        SimulatedKeyboard(scenario, rate, list(SIM_INTRO_KEYS))
+        SimulatedKeyboard(
+            scenario, rate, make_sim_typed_keys(list(set_digits.values()))
+        )
         if simulated
         else real_kb
     )
@@ -486,49 +552,83 @@ def main() -> None:
         screens_dir.mkdir()
     captured: set[str] = set()
     win.recordFrameIntervals = True
+    digits_stim = make_text(win, height=DIGITS_HEIGHT)
+    recall_prompt = make_text(win, PROMPT_Y)
+    recall_typed = make_text(win, INPUT_Y, height=DIGITS_HEIGHT)
+    trial_index = 0
     with data_path.open("x", newline="", encoding="utf-8") as data_file:
         writer = csv.DictWriter(data_file, fieldnames=CSV_COLUMNS)
         writer.writeheader()
-        for trial_index, start in enumerate(plan, start=1):
-            dropped_before = win.nDroppedFrames
-            outcome, rt = run_start(win, lamps, rate, kb, flag, start)
-            dropped = win.nDroppedFrames - dropped_before
-            row = make_row(
-                participant=nick,
-                machine=machine,
-                start=start,
-                trial_index=trial_index,
-                outcome=outcome,
-                rt=rt,
-                dropped_frames=dropped,
-                written_at=datetime.now().astimezone(),
-            )
-            writer.writerow(row)
+        data_file.flush()  # hlavička hned na disk, i kdyby první sada nedoběhla
+        for set_number, starts in enumerate(group_sets(plan), start=1):
+            digits = set_digits[(starts[0].block, starts[0].set_index)]
+            first_set = simulated and set_number == 1
+            if digits:
+                capture = screens_dir / "00_digits.png" if first_set else None
+                show_digits(win, kb, digits_stim, digits, rate, capture_path=capture)
+            results = []
+            for start in starts:
+                trial_index += 1
+                dropped_before = win.nDroppedFrames
+                outcome, rt = run_start(win, lamps, rate, kb, flag, start)
+                dropped = win.nDroppedFrames - dropped_before
+                results.append((trial_index, start, outcome, rt, dropped))
+                print(
+                    trial_index,
+                    start.load,
+                    start.foreperiod,
+                    start.is_nogo,
+                    outcome,
+                    None if rt is None else round(rt * 1000, 1),
+                    f"vypadlé snímky: {dropped}",
+                )
+                show_pause(
+                    win,
+                    lamps,
+                    REST_INTERVAL,
+                    rate,
+                    kb,
+                    feedback,
+                    feedback_text(outcome, rt, language),
+                    capture_path=(
+                        screens_dir / f"{trial_index:02d}_{outcome}.png"
+                        if simulated and outcome not in captured
+                        else None
+                    ),
+                )
+                captured.add(outcome)
+            typed = ""
+            if digits:
+                typed = ask_recall(
+                    win,
+                    kb,
+                    recall_prompt,
+                    recall_typed,
+                    TEXTS[language]["recall_prompt"],
+                    len(digits),
+                    capture_path=screens_dir / "00_recall.png" if first_set else None,
+                )
+                print(
+                    f"sada {set_number}: číslice {digits}, odpověď {typed}", flush=True
+                )
+            # Zápis po sadě (docs/experiment.md, Data): 3 řádky po vybavení číslic.
+            for index, start, outcome, rt, dropped in results:
+                writer.writerow(
+                    make_row(
+                        participant=nick,
+                        machine=machine,
+                        start=start,
+                        trial_index=index,
+                        outcome=outcome,
+                        rt=rt,
+                        dropped_frames=dropped,
+                        written_at=datetime.now().astimezone(),
+                        digits_shown=digits,
+                        digits_typed=typed,
+                    )
+                )
             data_file.flush()
             logging.flush()
-            print(
-                trial_index,
-                start.foreperiod,
-                start.is_nogo,
-                outcome,
-                row["rt_ms"],
-                f"vypadlé snímky: {dropped}",
-            )
-            show_pause(
-                win,
-                lamps,
-                REST_INTERVAL,
-                rate,
-                kb,
-                feedback,
-                feedback_text(outcome, rt, language),
-                capture_path=(
-                    screens_dir / f"{trial_index:02d}_{outcome}.png"
-                    if simulated and outcome not in captured
-                    else None
-                ),
-            )
-            captured.add(outcome)
 
     meta = finish_meta(meta, datetime.now().astimezone(), win.nDroppedFrames)
     write_meta(meta_path, meta)

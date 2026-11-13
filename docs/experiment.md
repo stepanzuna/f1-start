@@ -49,6 +49,10 @@ Po každém bloku: hodnocení vnímané námahy na Paasově škále 1–9 a pauz
 - Vybavení: bez časového limitu. Přijímá jen číslice 0–9, nejvýš tolik, kolik jich bylo
   zobrazeno, Backspace maže. Enter potvrdí i kratší odpověď.
 - `recall_correct = True` jen při přesné shodě celé sekvence včetně pořadí.
+- Psaní číslic (krok 6): horní řada, numerická klávesnice i česká horní řada bez Shiftu
+  („+ěščřžýáíé“ = 1234567890). Na obrazovce vybavení je výzva ve zvoleném jazyce a napsané
+  číslice velikostí 80 px, oddělené mezerou.
+- Číslice jsou v plánu v samostatném slovníku podle (blok, pořadí sady); `Start` se nemění.
 - Zpětná vazba k vybavení: v ostré části žádná (stejné ve všech podmínkách), v testovacím kole
   „Správně“ nebo „Správně bylo: 4 7“.
 
@@ -207,7 +211,7 @@ se odvodí z plánu tak, aby padly všechny výsledky. Nick `sim`, okno menší 
 aspoň tak velké, aby se vešly podněty; jen pro simulaci), `keyboard_backend = "simulated"`,
 v meta navíc `sim_scenario` (typ odpovědi pro každý start). `check_data.py` u simulace porovná
 výsledek a reakční čas každého startu s předpovědí scénáře. `--sim-escape` stiskne Escape
-ve 4. startu a ověří přerušené sezení. Simulace neověřuje vzhled ani časování.
+v 5. startu (uprostřed 2. sady) a ověří přerušené sezení i to, že se rozdělaná sada nezapíše. Simulace neověřuje vzhled ani časování.
 
 ## Otevřené otázky
 

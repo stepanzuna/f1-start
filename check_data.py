@@ -17,6 +17,7 @@ from config import (
     BLOCK_ORDERS,
     CSV_COLUMNS,
     DATA_DIR_NAME,
+    DIGITS_PER_LOAD,
     FOREPERIODS,
     GO_OUTCOMES,
     KEYBOARD_BACKEND,
@@ -34,10 +35,17 @@ from config import (
     SIM_LANGUAGE,
     SIM_NICK,
     SIM_PRESS_RT,
+    STARTS_PER_SET,
     TEST_PREFIX,
     WINDOW_MODES,
 )
-from logic import companion_path, expected_outcome, is_valid_nick, session_data_dir
+from logic import (
+    companion_path,
+    expected_outcome,
+    is_valid_nick,
+    session_data_dir,
+    sim_recall_answer,
+)
 
 REQUIRED_META_KEYS = (
     "participant",
@@ -242,12 +250,14 @@ def check_simulation(meta: dict[str, object], rows: list[dict[str, str]]) -> lis
         )
     if "escape" in scenario:
         escape_at = scenario.index("escape") + 1
-        if not meta["aborted"] or len(rows) != escape_at - 1:
+        # Zapisuje se po sadě: rozdělaná sada s Escapem se nezapíše.
+        expected_rows = (escape_at - 1) // STARTS_PER_SET * STARTS_PER_SET
+        if not meta["aborted"] or len(rows) != expected_rows:
             problems.append(
-                f"simulace s Escapem ve startu {escape_at} má mít aborted a {escape_at - 1} "
+                f"simulace s Escapem ve startu {escape_at} má mít aborted a {expected_rows} "
                 f"řádků, má aborted={meta['aborted']} a {len(rows)} řádků"
             )
-        scenario = scenario[: escape_at - 1]
+        scenario = scenario[:expected_rows]
     for index, (row, response) in enumerate(zip(rows, scenario, strict=False), start=1):
         expected = expected_outcome(response, row["is_nogo"] == "True")
         if row["outcome"] != expected:
@@ -260,6 +270,52 @@ def check_simulation(meta: dict[str, object], rows: list[dict[str, str]]) -> lis
             if row["rt_ms"] != expected_rt:
                 problems.append(
                     f"řádek {index}: simulace čekala rt_ms {expected_rt}, je {row['rt_ms']}"
+                )
+    return problems
+
+
+def check_digits(rows: list[dict[str, str]], simulated: bool) -> list[str]:
+    """Ověří sloupce s číslicemi: počet podle zátěže, odpověď, recall_correct, shodu v sadě.
+
+    U simulace navíc, že odpověď je přesně ta, kterou simulace napsala.
+    """
+    problems = []
+    sets: dict[tuple[str, str], tuple[str, str]] = {}
+    for row in rows:
+        index = row["trial_index"]
+        shown, typed, correct = (
+            row["digits_shown"],
+            row["digits_typed"],
+            row["recall_correct"],
+        )
+        n_digits = DIGITS_PER_LOAD.get(row["load"], 0)
+        key = (row["block"], row["set_index"])
+        if sets.setdefault(key, (shown, typed)) != (shown, typed):
+            problems.append(f"řádek {index}: jiné číslice než zbytek sady {key}")
+        if n_digits == 0:
+            if (shown, typed, correct) != ("", "", ""):
+                problems.append(
+                    f"řádek {index}: zátěž bez číslic má mít prázdné sloupce"
+                )
+            continue
+        unique_digits = shown.isdigit() and len(set(shown)) == len(shown)
+        if len(shown) != n_digits or not unique_digits:
+            problems.append(f"řádek {index}: digits_shown {shown!r} nesedí k zátěži")
+        if typed and (not typed.isdigit() or len(typed) > n_digits):
+            problems.append(
+                f"řádek {index}: digits_typed {typed!r} není platná odpověď"
+            )
+        if correct != str(typed == shown):
+            problems.append(
+                f"řádek {index}: recall_correct {correct!r} nesedí s odpovědí"
+            )
+    if simulated:
+        with_digits = [value for value in sets.values() if value[0]]
+        for set_number, (shown, typed) in enumerate(with_digits, start=1):
+            expected = sim_recall_answer(shown, set_number)
+            if typed != expected:
+                problems.append(
+                    f"sada {set_number}: simulace napsala {expected!r}, uloženo {typed!r}"
                 )
     return problems
 
@@ -327,6 +383,7 @@ def check_session(csv_path: Path) -> tuple[str, list[str], list[str]]:
     problems.extend(check_meta(meta, rows))
     problems.extend(check_files(csv_path, meta))
     problems.extend(check_simulation(meta, rows))
+    problems.extend(check_digits(rows, bool(meta.get("simulated"))))
     return summarize(meta, rows), problems, dropped_frame_warnings(rows)
 
 

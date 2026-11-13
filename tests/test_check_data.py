@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from check_data import check_row, check_rt, check_session
+from check_data import check_digits, check_row, check_rt, check_session
 from config import (
     CSV_COLUMNS,
     LOG_SUFFIX,
@@ -311,3 +311,62 @@ def test_invalid_language_and_block_order(tmp_path: Path) -> None:
     problems = check_session(csv_path)[1]
     assert any("jazyk 'de'" in p for p in problems)
     assert any("pořadí bloků 'AABB'" in p for p in problems)
+
+
+def digit_row(
+    index: int, load: str, set_index: int, shown: str, typed: str
+) -> dict[str, str]:
+    """Řádek CSV (jako text) jen se sloupci, které čte check_digits."""
+    correct = str(typed == shown) if shown else ""
+    return {
+        "trial_index": str(index),
+        "load": load,
+        "block": "1",
+        "set_index": str(set_index),
+        "digits_shown": shown,
+        "digits_typed": typed if shown else "",
+        "recall_correct": correct,
+    }
+
+
+def test_check_digits_valid_and_invalid() -> None:
+    """Platné sady projdou; špatný počet, opakování, nesoulad v sadě a recall_correct ne."""
+    good = [digit_row(i, "low", 1, "47", "47") for i in (1, 2, 3)]
+    good += [digit_row(i, "high", 2, "093182", "093") for i in (4, 5, 6)]
+    good += [digit_row(7, "none", 3, "", "")]
+    assert check_digits(good, simulated=False) == []
+    bad = [
+        digit_row(1, "low", 1, "477", "47"),  # 3 číslice při nízké zátěži
+        digit_row(2, "high", 2, "093189", "0"),  # 9 dvakrát
+        digit_row(3, "high", 2, "093182", "0"),  # jiné než zbytek sady 2
+        digit_row(4, "low", 4, "47", "47") | {"recall_correct": "False"},
+    ]
+    problems = check_digits(bad, simulated=False)
+    for expected in (
+        "řádek 1: digits_shown",
+        "řádek 2: digits_shown",
+        "řádek 3: jiné",
+        "řádek 4",
+    ):
+        assert any(problem.startswith(expected) for problem in problems), expected
+
+
+def test_check_digits_simulation() -> None:
+    """U simulace musí odpověď odpovídat vzoru: sada 1 správně, sada 2 špatná poslední číslice."""
+    rows = [digit_row(1, "low", 1, "47", "47"), digit_row(2, "low", 2, "47", "40")]
+    assert check_digits(rows, simulated=True) == []
+    rows[1] = digit_row(2, "low", 2, "47", "47")
+    assert any("sada 2" in problem for problem in check_digits(rows, simulated=True))
+
+
+def test_simulation_with_escape_mid_set(tmp_path: Path) -> None:
+    """Escape ve startu 5 (uprostřed 2. sady): zapsaná je jen 1. sada, tedy 3 řádky."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME, aborted=True)
+    lines = csv_path.read_text(encoding="utf-8").splitlines()
+    scenario = make_simulated(csv_path)
+    with_escape = [*scenario[:4], "escape", *scenario[5:]]
+    for n_rows, ok in ((3, True), (4, False)):
+        csv_path.write_text("\n".join(lines[: n_rows + 1]) + "\n", encoding="utf-8")
+        make_simulated(csv_path, sim_scenario=with_escape)
+        problems = check_session(csv_path)[1]
+        assert (problems == []) is ok, problems

@@ -28,6 +28,8 @@ LIGHT_INTERVAL = 1.0
 RESPONSE_WINDOW = 1.5
 REST_INTERVAL = 1.0
 ANTICIPATION_THRESHOLD = 0.1
+DIGITS_DURATION = 2.0  # zobrazení číslic na začátku sady
+DIGITS_BLANK = 0.5  # prázdná obrazovka po číslicích
 
 # Výsledky startu (docs/experiment.md, „Výsledky startu“); jump_start může nastat u obou typů
 GO_OUTCOMES = ("jump_start", "anticipation", "go", "omission")
@@ -37,6 +39,19 @@ OUTCOMES_WITH_RT = ("anticipation", "go", "commission")
 # Design (docs/experiment.md, „Design“): zátěž a počet ostrých bloků (block 0 = testovací kolo)
 LOADS = ("none", "low", "high")
 N_BLOCKS = 4
+
+# Paměťová sada (docs/experiment.md, „Průběh jedné sady“, „Číslice a vybavení“)
+STARTS_PER_SET = 3
+DIGITS_PER_LOAD = {"none": 0, "low": 2, "high": 6}
+DIGITS = "0123456789"
+DIGITS_HEIGHT = 80  # px
+# Česká klávesnice: horní řada bez Shiftu píše tyto znaky; při vybavení se berou jako číslice
+# (i velká písmena při Caps Lock). „+“ je i plus na numerické klávesnici (iohub obojí hlásí
+# jako num_add), překlep tam zapíše 1; účastník ho vidí a může smazat.
+CZECH_DIGIT_ROW = dict(zip("+ěščřžýáíé", "1234567890", strict=True))
+# Do kroku 7 (plán sezení): sady se střídají nízká/vysoká zátěž, vše v bloku 1
+PLACEHOLDER_LOADS = ("low", "high")
+PLACEHOLDER_BLOCK = 1
 
 # Plán startů
 GO_PER_FOREPERIOD = 3
@@ -159,7 +174,7 @@ SIM_FLAG = "--sim"
 SIM_ESCAPE_FLAG = (
     "--sim-escape"  # simulace, která Escapem přeruší start č. SIM_ESCAPE_AT
 )
-SIM_ESCAPE_AT = 4
+SIM_ESCAPE_AT = 5  # uprostřed 2. sady: rozdělaná sada se nesmí zapsat
 SIM_NICK = "sim"
 SIM_LANGUAGE = "en"
 # Klávesy, které simulace „napíše“ na úvodních obrazovkách: příliš krátký nick (chyba),
@@ -169,6 +184,9 @@ SIM_INTRO_KEYS = ("x", "return", "backspace", "s", "i", "m", "return", "e", "ret
 # ne obrazovky). Na Retině je obrázek 2× zvětšený výřez středu okna (omezení
 # getMovieFrame), dlouhý text proto vypadá useknutý; vzhled ověřuje ruční test.
 SIM_SCREENS_SUFFIX = "_screens"
+# Vybavení číslic v simulaci se střídá: správně, špatná poslední číslice, překlep opravený
+# Backspacem, kratší odpověď (jen první číslice).
+SIM_RECALL_CYCLE = ("correct", "wrong", "corrected", "short")
 SIM_DIR_NAME = "sim"
 # Simulace běží v menším okně uprostřed (jen pro ni, ostrý běh ho nedostane), aby nechala
 # volnou obrazovku. Okno je aspoň tak velké, aby se vešly lampy i vlajka s okrajem.

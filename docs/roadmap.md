@@ -133,9 +133,12 @@ Hotovo když: po každém startu se zobrazí správná hláška.
 
 ## Krok 6: Paměťová zátěž
 
-- [ ] zobrazení číslic (2 nebo 6), sada 3 startů, vybavení přes funkci z kroku 4
+- [x] zobrazení číslic (2 nebo 6), sada 3 startů, vybavení přes funkci z kroku 4
       (pravidla v `docs/experiment.md`, „Číslice a vybavení“)
-- [ ] sloupce `digits_shown`, `digits_typed`, `recall_correct`, zápis CSV po sadě
+- [x] sloupce `digits_shown`, `digits_typed`, `recall_correct`, zápis CSV po sadě
+- [x] dočasně do kroku 7: testovací plán rozdělený do sad, zátěž se střídá nízká/vysoká
+- [x] simulace píše odpovědi (správně, špatně, opraveno, kratší), `check_data.py` je ověří
+- [ ] (ručně) číslice a vybavení na celé obrazovce, česká klávesnice
 
 Hotovo když: celá sada proběhne a v CSV jsou 3 řádky se správnými číslicemi.
 
@@ -146,6 +149,8 @@ Hotovo když: celá sada proběhne a v CSV jsou 3 řádky se správnými čísli
 - [ ] rozdělení do bloků ABBA/BAAB, `random.Random(seed)`, seed do metadat
 - [ ] ostré starty mají `block` 1–4 (jinak by `make_row` dal `phase = "practice"`),
       `set_index` a `start_in_set` skutečné hodnoty; kontroly obojího doplnit do `check_data.py`
+      (i velikost sady: přesně 3 řádky se stejnou zátěží)
+- [ ] nahradit dočasné `assign_sets` (krok 6) a `random.Random()` bez seedu v `main.py`
 - [ ] testy v `tests/` přes pytest: počty, poměr, pravidlo max 2 no-go, stejný seed = stejný plán
 
 Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocích.
@@ -153,7 +158,10 @@ Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocíc
 ## Krok 8: Testovací kolo
 
 - [ ] 4 starty bez číslic (1 no-go) + 1 sada s 2 číslicemi, `phase = "practice"`
-- [ ] `R` = zopakovat, mezerník = pokračovat
+- [ ] `R` = zopakovat, mezerník = pokračovat (obrazovka čte bez `keyList`, viz CLAUDE.md)
+- [ ] opakované testovací kolo: číslice podle klíče (blok, sada) se nesmí opakovat, část 1
+      (bez číslic) se zapisuje po každém startu a nesmí se slít do jedné sady; upravit vzorec
+      Escapu v `check_simulation` pro sady různé délky
 - [ ] ověřit, že vypadlý snímek po prvním stisku v sezení padne do testovacího kola,
       ne do prvního ostrého startu (`check_data.py` ho hlásí jako varování)
 

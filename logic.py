@@ -16,6 +16,9 @@ from config import (
     BACKSPACE_KEY,
     BLOCK_ORDER_KEYS,
     BLOCK_ORDERS,
+    CZECH_DIGIT_ROW,
+    DIGITS,
+    DIGITS_PER_LOAD,
     ENTER_KEYS,
     FEEDBACK_KEYS,
     FLAG_HEIGHT,
@@ -40,6 +43,8 @@ from config import (
     ORDER_AUTO,
     ORDER_MANUAL,
     PILOT_PREFIX,
+    PLACEHOLDER_BLOCK,
+    PLACEHOLDER_LOADS,
     RESPONSE_WINDOW,
     REST_INTERVAL,
     SIM_DIR_NAME,
@@ -48,11 +53,14 @@ from config import (
     SIM_ESCAPE_FLAG,
     SIM_FLAG,
     SIM_GO_CYCLE,
+    SIM_INTRO_KEYS,
     SIM_KEYBOARD_BACKEND,
     SIM_NOGO_CYCLE,
     SIM_PRESS_RT,
+    SIM_RECALL_CYCLE,
     SIM_WINDOW_MARGIN,
     SIM_WINDOW_SCALE,
+    STARTS_PER_SET,
     TEST_PREFIX,
     TEXTS,
 )
@@ -89,6 +97,58 @@ def make_plan() -> list[Start]:
             )
     random.shuffle(plan)
     return plan
+
+
+def assign_sets(plan: list[Start]) -> list[Start]:
+    """Rozdělí plán do sad po STARTS_PER_SET startech (pořadí sady i startu v ní od 1).
+
+    Do kroku 7 (plán sezení) dočasně: zátěž se po sadách střídá nízká/vysoká, vše v bloku 1.
+    """
+    return [
+        replace(
+            start,
+            load=PLACEHOLDER_LOADS[(i // STARTS_PER_SET) % len(PLACEHOLDER_LOADS)],
+            block=PLACEHOLDER_BLOCK,
+            set_index=i // STARTS_PER_SET + 1,
+            start_in_set=i % STARTS_PER_SET + 1,
+        )
+        for i, start in enumerate(plan)
+    ]
+
+
+def group_sets(plan: list[Start]) -> list[list[Start]]:
+    """Seskupí po sobě jdoucí starty téže sady (stejný blok a pořadí sady)."""
+    return [
+        list(starts)
+        for _, starts in itertools.groupby(plan, key=lambda s: (s.block, s.set_index))
+    ]
+
+
+def make_digits(load: str, rng: random.Random) -> str:
+    """Číslice pro sadu: počet podle zátěže, bez opakování, nula smí být první."""
+    return "".join(rng.sample(DIGITS, DIGITS_PER_LOAD[load]))
+
+
+def make_set_digits(
+    plan: list[Start], rng: random.Random
+) -> dict[tuple[int, int], str]:
+    """Číslice pro každou sadu plánu, vygenerované předem (klíč: blok, pořadí sady)."""
+    digits: dict[tuple[int, int], str] = {}
+    for start in plan:
+        key = (start.block, start.set_index)
+        if key not in digits:
+            digits[key] = make_digits(start.load, rng)
+    return digits
+
+
+def recall_char(char: str) -> str:
+    """Znak z klávesnice při vybavení: česká horní řada bez Shiftu se bere jako číslice."""
+    return CZECH_DIGIT_ROW.get(char.lower(), char)
+
+
+def edit_recall(text: str, name: str, char: str, n_digits: int) -> str:
+    """Upraví psanou odpověď při vybavení: jen číslice, nejvýš tolik, kolik jich bylo."""
+    return edit_text(text, name, recall_char(char), DIGITS, n_digits)
 
 
 def classify_press(rt: float, is_nogo: bool) -> str:
@@ -140,8 +200,13 @@ def make_row(
     rt: float | None,
     dropped_frames: int,
     written_at: datetime,
+    digits_shown: str = "",
+    digits_typed: str = "",
 ) -> dict[str, object]:
-    """Sestaví jeden řádek CSV (jeden start) ve sloupcích podle CSV_COLUMNS."""
+    """Sestaví jeden řádek CSV (jeden start) ve sloupcích podle CSV_COLUMNS.
+
+    Bez číslic (zátěž "none") zůstanou sloupce číslic prázdné.
+    """
     return {
         "participant": participant,
         "machine": machine,
@@ -155,10 +220,9 @@ def make_row(
         "is_nogo": start.is_nogo,
         "outcome": outcome,
         "rt_ms": "" if rt is None else round(rt * 1000, 1),
-        # Číslice doplní krok 6 (paměťová zátěž).
-        "digits_shown": "",
-        "digits_typed": "",
-        "recall_correct": "",
+        "digits_shown": digits_shown,
+        "digits_typed": digits_typed if digits_shown else "",
+        "recall_correct": (digits_typed == digits_shown) if digits_shown else "",
         "dropped_frames": dropped_frames,
         "timestamp": written_at.isoformat(timespec="seconds"),
     }
@@ -443,6 +507,32 @@ def expected_outcome(response: str, is_nogo: bool) -> str:
     if response == "none":
         return outcome_without_press(is_nogo)
     return classify_press(SIM_PRESS_RT[response], is_nogo)
+
+
+def sim_recall_answer(digits: str, set_number: int) -> str:
+    """Odpověď, kterou simulace napíše při vybavení sady číslo set_number (od 1)."""
+    pattern = SIM_RECALL_CYCLE[(set_number - 1) % len(SIM_RECALL_CYCLE)]
+    if pattern == "wrong":
+        return digits[:-1] + next(d for d in DIGITS if d != digits[-1])
+    if pattern == "short":
+        return digits[:1]
+    return digits  # "correct" i "corrected"
+
+
+def sim_recall_keys(digits: str, set_number: int) -> list[str]:
+    """Klávesy, kterými simulace vybavení napíše (u "corrected" překlep a Backspace)."""
+    pattern = SIM_RECALL_CYCLE[(set_number - 1) % len(SIM_RECALL_CYCLE)]
+    typo = [next(d for d in DIGITS if d != digits[0]), BACKSPACE_KEY]
+    prefix = typo if pattern == "corrected" else []
+    return [*prefix, *sim_recall_answer(digits, set_number), "return"]
+
+
+def make_sim_typed_keys(set_digits: list[str]) -> list[str]:
+    """Všechny klávesy simulace: úvodní obrazovky a pak vybavení každé sady s číslicemi."""
+    keys = list(SIM_INTRO_KEYS)
+    for set_number, digits in enumerate([d for d in set_digits if d], start=1):
+        keys += sim_recall_keys(digits, set_number)
+    return keys
 
 
 @dataclass
