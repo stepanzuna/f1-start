@@ -1,5 +1,13 @@
 """Konstanty a parametry experimentu (bez PsychoPy)."""
 
+# Okno: "fullscr" (režim celé obrazovky) nebo "borderless" (okno bez okrajů velikosti displeje)
+WINDOW_MODES = ("fullscr", "borderless")
+WINDOW_MODE = "fullscr"
+
+# Obnovovací frekvence displeje (v Hz), jiná naměřená hodnota ukončí program
+EXPECTED_FRAME_RATE = 60
+FRAME_RATE_TOLERANCE = 1.0
+
 # Barvy
 OFF = "#333333"
 ON = "red"

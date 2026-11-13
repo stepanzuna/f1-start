@@ -1,11 +1,16 @@
+import os
+import sys
+
 from psychopy import logging
 
 from config import (
     ANTICIPATION_THRESHOLD,
+    EXPECTED_FRAME_RATE,
     FLAG_COLOR,
     FLAG_HEIGHT,
     FLAG_POS,
     FLAG_WIDTH,
+    FRAME_RATE_TOLERANCE,
     LAMP_RADIUS,
     LAMP_SPACING,
     LAMP_Y,
@@ -15,11 +20,14 @@ from config import (
     ON,
     RESPONSE_WINDOW,
     REST_INTERVAL,
+    WINDOW_MODE,
+    WINDOW_MODES,
 )
 from logic import Start, make_plan
 
 logging.console.setLevel(logging.ERROR)
 
+import pyglet  # noqa: E402
 from psychopy import core, visual  # noqa: E402
 from psychopy.hardware import keyboard  # noqa: E402
 
@@ -134,38 +142,91 @@ def quit_if_escape(keys: list[keyboard.KeyPress], win: visual.Window) -> None:
         core.quit()
 
 
-def main() -> None:
-    # Dočasně jen pro macOS, okno pro oba systémy řeší krok 2.
-    import AppKit
+def get_screen_size() -> tuple[int, int]:
+    """Zjistí velikost hlavního displeje stejně jako PsychoPy (přes pyglet)."""
+    screen = pyglet.canvas.get_display().get_default_screen()
+    return (screen.width, screen.height)
 
-    kb = keyboard.Keyboard(backend="iohub")
 
-    screen = AppKit.NSScreen.screens()[0].frame().size
+def open_window(mode: str) -> visual.Window:
+    """Otevře okno přes celou obrazovku v režimu "fullscr" nebo "borderless"."""
+    if mode not in WINDOW_MODES:
+        raise ValueError(f"Neznámý režim okna {mode!r}, povolené: {WINDOW_MODES}")
+
     win = visual.Window(
-        size=(int(screen.width), int(screen.height)),
+        size=get_screen_size(),
         pos=(0, 0),
+        fullscr=(mode == "fullscr"),
         allowGUI=False,
         color="black",
         units="pix",
     )
-    AppKit.NSApplication.sharedApplication().setPresentationOptions_(
-        AppKit.NSApplicationPresentationHideDock
-        | AppKit.NSApplicationPresentationHideMenuBar
-    )
-    logging.console.setLevel(logging.WARNING)
+    if mode == "borderless" and sys.platform == "darwin":
+        import AppKit
+
+        AppKit.NSApplication.sharedApplication().setPresentationOptions_(
+            AppKit.NSApplicationPresentationHideDock
+            | AppKit.NSApplicationPresentationHideMenuBar
+        )
     win.winHandle.activate()
     win.mouseVisible = False
+    return win
+
+
+def exit_if_hidden_launch(mode: str) -> None:
+    """Ukončí program, když by okno na macOS zůstalo schované za VS Code."""
+    from_vscode = os.environ.get("TERM_PROGRAM") == "vscode"
+    if sys.platform == "darwin" and mode == "fullscr" and from_vscode:
+        sys.exit(
+            "Z terminálu VS Code zůstane okno schované a experiment by běžel naslepo.\n"
+            "Spusť ho přes Cmd+Shift+B nebo z aplikace Terminál."
+        )
+
+
+def measure_frame_rate(win: visual.Window) -> float:
+    """Změří obnovovací frekvenci, při chybě nebo nečekané hodnotě ukončí program."""
     rate = win.getActualFrameRate()
     if rate is None:
         print("Nepodařilo se změřit obnovovací frekvenci.")
         win.close()
         core.quit()
+    if abs(rate - EXPECTED_FRAME_RATE) > FRAME_RATE_TOLERANCE:
+        print(
+            f"Obnovovací frekvence je {rate:.1f} Hz, potřeba je {EXPECTED_FRAME_RATE} Hz.\n"
+            "Nastav pevnou frekvenci displeje (macOS: Nastavení → Monitory, ne ProMotion)."
+        )
+        win.close()
+        core.quit()
+    return rate
+
+
+def main() -> None:
+    exit_if_hidden_launch(WINDOW_MODE)
+    kb = keyboard.Keyboard(backend="iohub")
+
+    win = open_window(WINDOW_MODE)
+    logging.console.setLevel(logging.WARNING)
+    rate = measure_frame_rate(win)
+    print(
+        f"systém {sys.platform}, režim {WINDOW_MODE}, velikost okna {win.size} px, "
+        f"frekvence {rate:.2f} Hz",
+        flush=True,
+    )
 
     lamps = make_lamps(win)
     flag = make_flag(win)
+    win.recordFrameIntervals = True
     for start in make_plan():
+        dropped_before = win.nDroppedFrames
         outcome, rt = run_start(win, lamps, rate, kb, flag, start)
-        print(start.foreperiod, start.is_nogo, outcome, rt)
+        dropped = win.nDroppedFrames - dropped_before
+        print(
+            start.foreperiod,
+            start.is_nogo,
+            outcome,
+            rt,
+            f"vypadlé snímky: {dropped} (celkem {win.nDroppedFrames})",
+        )
         show_pause(win, lamps, REST_INTERVAL, rate, kb)
 
     win.close()

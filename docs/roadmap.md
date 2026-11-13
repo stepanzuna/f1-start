@@ -46,15 +46,33 @@ no-go bez stisku a stisk před zhasnutím.
 
 Hotovo když: program se chová úplně stejně jako po kroku 1 a `uv run pytest` projde.
 
-## Krok 2: Okno pro macOS i Windows
+## Krok 2: Okno (kód pro oba systémy, ověření na macOS)
 
-- [ ] **do neděle 15. 11.:** na Windows nainstalovat uv, `git clone`, `uv sync`, spustit a sepsat,
-      kde a s jakou chybou to selže (očekávaná první chyba: `import AppKit`)
-- [ ] reprodukovat a popsat problém s `fullscr=True` na obou systémech
-- [ ] funkce `open_window()` s preferovaným a záložním režimem, bez `AppKit` na úrovni modulu
-- [ ] výpis použitého režimu okna, rozlišení a naměřené frekvence
+- [x] funkce `open_window()` s režimy `fullscr` a `borderless` (`WINDOW_MODE` v `config.py`),
+      kód jen pro macOS ve větvi `sys.platform == "darwin"`, bez `AppKit` na úrovni modulu
+- [x] diagnostické výpisy (vytváření okna, měření frekvence), vypadlé snímky po každém startu
+- [x] reprodukovat a popsat problém s `fullscr=True` na macOS (Terminál, `Cmd+Shift+B`, terminál VS Code)
+- [x] rozhodnout výchozí režim, úklid výpisů, výpis režimu okna, rozlišení a frekvence
 
-Hotovo když: na Macu i na Windows se okno otevře v popředí přes celou obrazovku
+Hotovo když: na Macu se okno otevře v popředí přes celou obrazovku
+a 5 testovacích startů proběhne bez vypadlých snímků.
+
+## Krok 2u: Velikost podnětů ve stupních zrakového úhlu
+
+- [ ] změřit šířku obrazovky v cm (MacBook, později Windows), vzdálenost 60 cm
+- [ ] `monitors.Monitor` pro každý počítač, okno s `units="deg"`
+- [ ] převést rozměry lamp a vlajky na stupně (nové hodnoty schválit, zapsat do `docs/experiment.md`)
+
+Hotovo když: lampy a vlajka mají na Macu stejnou fyzickou velikost, jakou předpovídá výpočet
+ze stupňů, a zmizí varování „Monitor specification not found“.
+
+## Krok 2w: Ověření na Windows (později, před pilotem)
+
+- [ ] na Windows nainstalovat uv, `git clone`, `uv sync`, spustit a sepsat, kde a s jakou chybou to selže
+- [ ] zjistit rozlišení, škálování displeje (DPI) a obnovovací frekvenci
+- [ ] oba režimy okna z PowerShellu i z terminálu VS Code, skutečná velikost okna v pixelech
+
+Hotovo když: na Windows se okno otevře v popředí přes celou obrazovku
 a 5 testovacích startů proběhne bez vypadlých snímků.
 
 ## Krok 3: Ukládání do CSV a metadat
@@ -131,3 +149,7 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
 - 2026-11-13: rozhodnutí: tři soubory (`config.py`, `logic.py`, `main.py`) místo sedmi modulů.
 - 2026-11-13: krok 1b: `config.py` (i rozměry lamp a vlajky), `logic.py` s `@dataclass Start`
   a `make_plan()`, `run_start` dostává `Start`, `AppKit` uvnitř `main()`, první testy pytestem.
+- 2026-11-13: krok 2: `open_window(mode)` (`fullscr` / `borderless`, AppKit jen ve větvi darwin),
+  kontrola frekvence 60 ± 1 Hz, pojistka proti spuštění z terminálu VS Code; na macOS `fullscr`
+  z Terminálu a `Cmd+Shift+B` bez vypadlých snímků ve startech. Windows přesunuto do kroku 2w,
+  nový krok 2u (jednotky `deg`, Retina).
