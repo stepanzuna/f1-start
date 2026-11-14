@@ -253,6 +253,13 @@ Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do přís
 4. Texty úvodní obrazovky a obrazovky po testovacím kole (viz „Testovací kolo“): *návrh:*
    schválit spolu s ostatními texty instrukcí v kroku 9.
 
+**Krok 9 (průběh sezení)**
+5. Celkové zhodnocení na konci sezení (nápad uživatele 14. 11. 2026; v ostré části žádná
+   zpětná vazba k vybavení, to zůstává). *Návrh:* závěrečná obrazovka po poděkování ukáže
+   souhrn z ostré části: průměrný reakční čas (go), počet předčasných startů, počet startů
+   pod vlajkou z celkového počtu no-go a podíl správně vybavených sad, zvlášť pro 2 a 6 číslic.
+   Zobrazí se až po uložení všech dat, takže měření neovlivní.
+
 ## Poznámky k analýze
 
 - 3 no-go na prodlevu a podmínku dávají 12 no-go na podmínku a účastníka. Na H1 celkově to stačí

@@ -166,7 +166,8 @@ Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocíc
 - [x] opakované testovací kolo: číslice podle klíče (blok, sada) se nesmí opakovat, část 1
       (bez číslic) se zapisuje po každém startu a nesmí se slít do jedné sady; upravit vzorec
       Escapu v `check_simulation` pro sady různé délky
-- [ ] (ručně) testovací kolo, opakování, vypadlý snímek po prvním stisku v testovacím kole
+- [x] (ručně) testovací kolo, opakování, vypadlý snímek po prvním stisku v testovacím kole
+- [x] úvodní obrazovka testovacího kola (na žádost uživatele), obecná `ask_key`
 - [ ] ověřit, že vypadlý snímek po prvním stisku v sezení padne do testovacího kola,
       ne do prvního ostrého startu (`check_data.py` ho hlásí jako varování)
 
@@ -252,3 +253,9 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
 - 2026-11-13: parametr změněn na žádost uživatele po ručním testu: `DIGITS_DURATION` 2 s → 4 s
   pro obě zátěže (6 číslic za 2 s nešlo zapamatovat; stejný čas, aby se podmínky lišily jen
   počtem číslic). Odhad délky ostré části asi 15–16 min.
+- 2026-11-14: krok 8 hotový: testovací kolo (4 starty bez číslic + sada se 2 číslicemi a hláškou
+  ke správnosti vybavení), úvodní obrazovka, R = zopakovat / mezerník = pokračovat, kola ze seedu
+  vlastním generátorem, `check_data.py` je přegeneruje. Ruční test: 2 kola, opakování, přechod
+  do ostré části v pořádku; vypadlý snímek po prvním stisku se tentokrát neobjevil vůbec.
+  Uživatel potvrdil: v ostré části bez zpětné vazby k vybavení; navrhl celkové zhodnocení
+  na konci sezení (otázka 5, krok 9). Otázky 1–4 ke kroku 8 implementovány podle návrhu.
