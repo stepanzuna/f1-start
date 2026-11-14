@@ -72,6 +72,8 @@ BLOCK_LOADS = {"A": "low", "B": "high"}  # písmena v pořadí bloků ABBA / BAA
 SEED_MAX = 2**31  # seed sezení je náhodné celé číslo 0 … SEED_MAX - 1
 # Zkrácený plán pro testy (uv run main.py --short): z každého bloku jen první sady
 SHORT_FLAG = "--short"
+# Pevný seed jen pro simulaci (--seed=N): stejné sezení pro porovnání před/po úpravě kódu
+SEED_FLAG = "--seed"
 SHORT_SETS_PER_BLOCK = 1
 
 # Klávesnice (stejný backend na macOS i Windows, viz CLAUDE.md)

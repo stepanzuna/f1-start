@@ -57,6 +57,7 @@ from config import (
     RECALL_FEEDBACK_DURATION,
     RESPONSE_WINDOW,
     REST_INTERVAL,
+    SEED_FLAG,
     SEED_MAX,
     SHORT_FLAG,
     SHORT_SETS_PER_BLOCK,
@@ -461,23 +462,37 @@ class RunOptions:
     simulated: bool = False
     escape_at: int | None = None
     short: bool = False
+    seed: int | None = None
 
 
 def parse_args(args: list[str]) -> RunOptions:
-    """Přečte argumenty příkazové řádky (--sim, --sim-escape, --short).
+    """Přečte argumenty příkazové řádky (--sim, --sim-escape, --short, --seed=N).
 
     Neznámý argument (např. překlep --simm) je chyba, aby se omylem nespustil ostrý běh.
+    Pevný seed jen se simulací: ostré sezení má seed vždy náhodný.
     """
     allowed = (SIM_FLAG, SIM_ESCAPE_FLAG, SHORT_FLAG)
-    unknown = [arg for arg in args if arg not in allowed]
+    seed_prefix = SEED_FLAG + "="
+    seeds = [
+        arg.removeprefix(seed_prefix) for arg in args if arg.startswith(seed_prefix)
+    ]
+    unknown = [
+        arg for arg in args if arg not in allowed and not arg.startswith(seed_prefix)
+    ]
     if unknown:
         raise ValueError(
-            f"Neznámý argument {unknown[0]!r}. Povolené: {', '.join(allowed)}."
+            f"Neznámý argument {unknown[0]!r}. Povolené: {', '.join(allowed)}, {seed_prefix}N."
+        )
+    simulated = SIM_FLAG in args or SIM_ESCAPE_FLAG in args
+    if seeds and not (len(seeds) == 1 and seeds[0].isdigit() and simulated):
+        raise ValueError(
+            f"{seed_prefix}N jde jen jednou, s celým číslem a se simulací."
         )
     return RunOptions(
-        simulated=SIM_FLAG in args or SIM_ESCAPE_FLAG in args,
+        simulated=simulated,
         escape_at=SIM_ESCAPE_AT if SIM_ESCAPE_FLAG in args else None,
         short=SHORT_FLAG in args,
+        seed=int(seeds[0]) if seeds else None,
     )
 
 

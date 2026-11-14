@@ -660,7 +660,7 @@ def main() -> None:
         flush=True,
     )
 
-    seed = make_seed()
+    seed = make_seed() if options.seed is None else options.seed
     completed = count_completed_sessions(data_root, machine)
     scenario = None
     kb = real_kb

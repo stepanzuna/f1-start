@@ -193,3 +193,16 @@ def test_sim_window_fits_stimuli(screen: tuple[int, int], ratio: float) -> None:
 def test_sim_window_on_retina_is_not_oversized() -> None:
     """Na Retině stačí podíl displeje, okno se zbytečně nezvětší (body ≠ pixely)."""
     assert sim_window_size((1512, 982), 2.0) == (605, 393)
+
+
+def test_parse_args_seed() -> None:
+    """--seed=N jen se simulací a s celým číslem; jinak chyba."""
+    assert parse_args(["--sim", "--seed=42"]).seed == 42
+    assert parse_args(["--sim"]).seed is None
+    for args in (
+        ["--seed=42"],
+        ["--sim", "--seed=x"],
+        ["--sim", "--seed=1", "--seed=2"],
+    ):
+        with pytest.raises(ValueError, match="--seed"):
+            parse_args(args)
