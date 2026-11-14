@@ -49,6 +49,7 @@ from config import (
     WINDOW_MODES,
 )
 from logic import (
+    RunOptions,
     Start,
     assign_block_order,
     build_practice,
@@ -350,122 +351,155 @@ def ask_key(session: Session, text_key: str, keys: tuple[str, ...]) -> str:
                 return key.name
 
 
+def run_set(session: Session, starts: list[Start], digits: str, practice: bool) -> None:
+    """Jedna sada: číslice, starty se zpětnou vazbou, vybavení, zápis CSV po sadě.
+
+    V testovacím kole (practice) po vybavení ukáže, jestli bylo správně.
+    """
+    if digits:
+        show_digits(
+            session.win,
+            session.kb,
+            session.digits_stim,
+            digits,
+            session.rate,
+            capture_path=capture_once(session, "digits"),
+        )
+    results = []
+    for start in starts:
+        session.trial_index += 1
+        dropped_before = session.win.nDroppedFrames
+        outcome, rt = run_start(
+            session.win,
+            session.lamps,
+            session.rate,
+            session.kb,
+            session.flag,
+            start,
+        )
+        dropped = session.win.nDroppedFrames - dropped_before
+        results.append((session.trial_index, start, outcome, rt, dropped))
+        print(
+            session.trial_index,
+            start.block,
+            start.load,
+            start.foreperiod,
+            start.is_nogo,
+            outcome,
+            None if rt is None else round(rt * 1000, 1),
+            f"vypadlé snímky: {dropped}",
+        )
+        show_pause(
+            session.win,
+            session.lamps,
+            REST_INTERVAL,
+            session.rate,
+            session.kb,
+            session.feedback,
+            feedback_text(outcome, rt, session.language),
+            capture_path=capture_once(session, outcome),
+        )
+    typed = ""
+    if digits:
+        typed = ask_recall(
+            session.win,
+            session.kb,
+            session.prompt,
+            session.typed,
+            TEXTS[session.language]["recall_prompt"],
+            len(digits),
+            capture_path=capture_once(session, "recall"),
+        )
+        print(f"číslice {digits}, odpověď {typed}", flush=True)
+        if practice:
+            show_message(
+                session.win,
+                session.kb,
+                session.message,
+                recall_feedback_text(digits, typed, session.language),
+                RECALL_FEEDBACK_DURATION,
+                session.rate,
+                capture_path=capture_once(session, "recall_feedback"),
+            )
+    # Zápis po sadě (docs/experiment.md, Data); část 1 testovacího kola po startu.
+    for index, start, outcome, rt, dropped in results:
+        session.writer.writerow(
+            make_row(
+                participant=session.nick,
+                machine=session.machine,
+                start=start,
+                trial_index=index,
+                outcome=outcome,
+                rt=rt,
+                dropped_frames=dropped,
+                written_at=datetime.now().astimezone(),
+                digits_shown=digits,
+                digits_typed=typed,
+            )
+        )
+    session.data_file.flush()
+    logging.flush()
+
+
 def run_sets(
     session: Session,
     plan: list[Start],
     set_digits: dict[tuple[int, int], str],
     practice: bool,
 ) -> None:
-    """Projde sady plánu: číslice, starty se zpětnou vazbou, vybavení, zápis CSV po sadě.
-
-    V testovacím kole (practice) po vybavení ukáže, jestli bylo správně.
-    """
+    """Projde všechny sady plánu po sobě."""
     for starts in group_sets(plan):
         digits = set_digits[(starts[0].block, starts[0].set_index)]
-        if digits:
-            show_digits(
-                session.win,
-                session.kb,
-                session.digits_stim,
-                digits,
-                session.rate,
-                capture_path=capture_once(session, "digits"),
-            )
-        results = []
-        for start in starts:
-            session.trial_index += 1
-            dropped_before = session.win.nDroppedFrames
-            outcome, rt = run_start(
-                session.win,
-                session.lamps,
-                session.rate,
-                session.kb,
-                session.flag,
-                start,
-            )
-            dropped = session.win.nDroppedFrames - dropped_before
-            results.append((session.trial_index, start, outcome, rt, dropped))
-            print(
-                session.trial_index,
-                start.block,
-                start.load,
-                start.foreperiod,
-                start.is_nogo,
-                outcome,
-                None if rt is None else round(rt * 1000, 1),
-                f"vypadlé snímky: {dropped}",
-            )
-            show_pause(
-                session.win,
-                session.lamps,
-                REST_INTERVAL,
-                session.rate,
-                session.kb,
-                session.feedback,
-                feedback_text(outcome, rt, session.language),
-                capture_path=capture_once(session, outcome),
-            )
-        typed = ""
-        if digits:
-            typed = ask_recall(
-                session.win,
-                session.kb,
-                session.prompt,
-                session.typed,
-                TEXTS[session.language]["recall_prompt"],
-                len(digits),
-                capture_path=capture_once(session, "recall"),
-            )
-            print(f"číslice {digits}, odpověď {typed}", flush=True)
-            if practice:
-                show_message(
-                    session.win,
-                    session.kb,
-                    session.message,
-                    recall_feedback_text(digits, typed, session.language),
-                    RECALL_FEEDBACK_DURATION,
-                    session.rate,
-                    capture_path=capture_once(session, "recall_feedback"),
-                )
-        # Zápis po sadě (docs/experiment.md, Data); část 1 testovacího kola po startu.
-        for index, start, outcome, rt, dropped in results:
-            session.writer.writerow(
-                make_row(
-                    participant=session.nick,
-                    machine=session.machine,
-                    start=start,
-                    trial_index=index,
-                    outcome=outcome,
-                    rt=rt,
-                    dropped_frames=dropped,
-                    written_at=datetime.now().astimezone(),
-                    digits_shown=digits,
-                    digits_typed=typed,
-                )
-            )
-        session.data_file.flush()
-        logging.flush()
+        run_set(session, starts, digits, practice)
 
 
-def main() -> None:
+def run_practice(session: Session, seed: int) -> int:
+    """Testovací kola s úvodní obrazovkou, dokud účastník nezvolí pokračovat; vrátí počet kol."""
+    practice_rounds = 0
+    repeat = True
+    while repeat:
+        practice_rounds += 1
+        starts, digits = build_practice(seed, practice_rounds)[-1]
+        print(f"testovací kolo {practice_rounds}", flush=True)
+        ask_key(session, "practice_start", (START_KEY,))
+        run_sets(session, starts, digits, practice=True)
+        choice = ask_key(
+            session, "practice_end", (PRACTICE_REPEAT_KEY, PRACTICE_CONTINUE_KEY)
+        )
+        repeat = choice == PRACTICE_REPEAT_KEY
+    return practice_rounds
+
+
+def read_options() -> RunOptions:
+    """Volby z příkazové řádky; neplatné volby, režim okna nebo spuštění z VS Code ukončí program.
+
+    Kontroly jdou před spuštěním klávesnice iohub, aby program skončil hned.
+    """
     try:
         options = parse_args(sys.argv[1:])
     except ValueError as error:
         sys.exit(str(error))
-    simulated = options.simulated
     if WINDOW_MODE not in WINDOW_MODES:
         sys.exit(
             f"WINDOW_MODE {WINDOW_MODE!r} není povolený pro ostrý běh: {WINDOW_MODES}"
         )
-    window_mode = SIM_WINDOW_MODE if simulated else WINDOW_MODE
-    exit_if_hidden_launch(window_mode)
-    machine = machine_code(sys.platform)
-    project_dir = Path(__file__).parent
-    data_root = project_dir / DATA_DIR_NAME
+    exit_if_hidden_launch(SIM_WINDOW_MODE if options.simulated else WINDOW_MODE)
+    return options
 
-    real_kb = None if simulated else open_keyboard()
-    # Bez toho PsychoPy po 5 vypadlých snímcích přestane varovat a log by je nezachytil.
-    visual.window.reportNDroppedFrames = DROPPED_FRAME_WARNINGS_MAX
+
+@dataclass
+class Display:
+    """Otevřené okno a jeho vlastnosti (ukládají se do meta)."""
+
+    win: visual.Window
+    rate: float
+    mode: str
+    size: tuple[int, int]
+
+
+def open_display(simulated: bool) -> Display:
+    """Otevře okno (v simulaci menší) a změří obnovovací frekvenci."""
+    window_mode = SIM_WINDOW_MODE if simulated else WINDOW_MODE
     win = open_window(window_mode)
     logging.console.setLevel(logging.WARNING)
     rate = measure_frame_rate(win)
@@ -475,35 +509,57 @@ def main() -> None:
         f"frekvence {rate:.2f} Hz{', SIMULACE' if simulated else ''}",
         flush=True,
     )
+    return Display(win, rate, window_mode, window_size)
 
-    seed = make_seed() if options.seed is None else options.seed
-    completed = count_completed_sessions(data_root, machine)
-    scenario = None
-    kb = real_kb
-    if simulated:
-        # Simulace pořadí bloků nemění, takže plán i číslice zná předem (stejný seed).
-        sim_starts, practice_digits, main_digits = sim_sequence(
-            assign_block_order(completed), seed, options.short
-        )
-        scenario = make_sim_scenario(sim_starts, options.escape_at)
-        kb = SimulatedKeyboard(
-            scenario, rate, make_sim_typed_keys(practice_digits, main_digits)
-        )
+
+def make_sim_keyboard(
+    options: RunOptions, seed: int, completed: int, rate: float
+) -> tuple[SimulatedKeyboard, list[str]]:
+    """Falešná klávesnice a scénář simulace (pořadí bloků nemění, plán zná předem)."""
+    sim_starts, practice_digits, main_digits = sim_sequence(
+        assign_block_order(completed), seed, options.short
+    )
+    scenario = make_sim_scenario(sim_starts, options.escape_at)
+    kb = SimulatedKeyboard(
+        scenario, rate, make_sim_typed_keys(practice_digits, main_digits)
+    )
+    return kb, scenario
+
+
+@dataclass
+class Participant:
+    """Co experimentátor zadal na úvodních obrazovkách."""
+
+    nick: str
+    data_dir: Path
+    block_order: str
+    language: str
+
+
+def ask_participant(
+    win: visual.Window,
+    kb: AnyKeyboard,
+    options: RunOptions,
+    data_root: Path,
+    machine: str,
+    completed: int,
+) -> Participant:
+    """Úvodní obrazovky: nick (a kontrola --short), pak pořadí bloků a jazyk."""
 
     def exists(nick: str) -> bool:
         """Existuje už sezení s tímto nickem? V simulaci se nekontroluje."""
-        return not simulated and nick_exists(
-            session_data_dir(data_root, simulated, nick), nick
+        return not options.simulated and nick_exists(
+            session_data_dir(data_root, options.simulated, nick), nick
         )
 
     nick = ask_nick(win, kb, exists)
-    if options.short and not short_plan_allowed(simulated, nick):
+    if options.short and not short_plan_allowed(options.simulated, nick):
         win.close()
         sys.exit(
             f"Zkrácený plán (--short) je jen pro testy: nick musí začínat "
             f"{TEST_PREFIX!r}, nebo spusť simulaci. Nick {nick!r} by šel mezi ostrá data."
         )
-    data_dir = session_data_dir(data_root, simulated, nick)
+    data_dir = session_data_dir(data_root, options.simulated, nick)
     block_order, language = ask_settings(
         win,
         kb,
@@ -512,38 +568,72 @@ def main() -> None:
         completed,
         "" if data_dir == data_root else data_dir.name,
     )
+    return Participant(nick, data_dir, block_order, language)
 
-    plan, set_digits = build_session(block_order, seed, options.short)
-    started_at = datetime.now().astimezone()
-    data_dir.mkdir(parents=True, exist_ok=True)
-    data_path = make_data_path(data_dir, nick, machine, started_at)
+
+def create_data_path(
+    win: visual.Window, participant: Participant, machine: str, started_at: datetime
+) -> Path:
+    """Složka a název CSV sezení; stejný nick ve stejné minutě ukončí program."""
+    participant.data_dir.mkdir(parents=True, exist_ok=True)
+    data_path = make_data_path(
+        participant.data_dir, participant.nick, machine, started_at
+    )
     if data_path.exists():
         win.close()
         sys.exit(
             f"Soubor {data_path.name} už existuje (stejný nick ve stejné minutě).\n"
             "Počkej minutu a spusť experiment znovu."
         )
+    return data_path
+
+
+def main() -> None:
+    options = read_options()
+    simulated = options.simulated
+    machine = machine_code(sys.platform)
+    project_dir = Path(__file__).parent
+    data_root = project_dir / DATA_DIR_NAME
+
+    real_kb = None if simulated else open_keyboard()
+    # Bez toho PsychoPy po 5 vypadlých snímcích přestane varovat a log by je nezachytil.
+    visual.window.reportNDroppedFrames = DROPPED_FRAME_WARNINGS_MAX
+    display = open_display(simulated)
+    win, rate = display.win, display.rate
+
+    seed = make_seed() if options.seed is None else options.seed
+    completed = count_completed_sessions(data_root, machine)
+    scenario = None
+    kb = real_kb
+    if simulated:
+        kb, scenario = make_sim_keyboard(options, seed, completed, rate)
+
+    participant = ask_participant(win, kb, options, data_root, machine, completed)
+    plan, set_digits = build_session(participant.block_order, seed, options.short)
+    started_at = datetime.now().astimezone()
+    data_path = create_data_path(win, participant, machine, started_at)
     meta_path = companion_path(data_path, META_SUFFIX)
     log_path = companion_path(data_path, LOG_SUFFIX)
     logging.LogFile(str(log_path), level=logging.WARNING, filemode="w")
     print(
-        f"data: {data_path}, pořadí {block_order}, jazyk {language}, seed {seed}, "
+        f"data: {data_path}, pořadí {participant.block_order}, "
+        f"jazyk {participant.language}, seed {seed}, "
         f"startů {len(plan)}{' (zkrácený plán)' if options.short else ''}",
         flush=True,
     )
 
     meta = make_meta(
-        participant=nick,
+        participant=participant.nick,
         machine=machine,
         started_at=started_at,
         environment=describe_environment(project_dir),
         frame_rate=float(rate),
-        window_mode=window_mode,
-        window_size=window_size,
+        window_mode=display.mode,
+        window_size=display.size,
         keyboard_backend=kb.getBackend(),
         planned_starts=len(plan),
-        block_order=block_order,
-        language=language,
+        block_order=participant.block_order,
+        language=participant.language,
         seed=seed,
         short=options.short,
         simulated=simulated,
@@ -552,7 +642,7 @@ def main() -> None:
         meta = {**meta, "sim_scenario": scenario}
     write_meta(meta_path, meta)
 
-    screens_dir = data_dir / (data_path.stem + SIM_SCREENS_SUFFIX)
+    screens_dir = participant.data_dir / (data_path.stem + SIM_SCREENS_SUFFIX)
     if simulated:
         screens_dir.mkdir()
     win.recordFrameIntervals = True
@@ -564,8 +654,8 @@ def main() -> None:
             win=win,
             kb=kb,
             rate=rate,
-            language=language,
-            nick=nick,
+            language=participant.language,
+            nick=participant.nick,
             machine=machine,
             writer=writer,
             data_file=data_file,
@@ -578,18 +668,7 @@ def main() -> None:
             typed=make_text(win, INPUT_Y, height=DIGITS_HEIGHT),
             screens_dir=screens_dir if simulated else None,
         )
-        practice_rounds = 0
-        repeat = True
-        while repeat:
-            practice_rounds += 1
-            starts, digits = build_practice(seed, practice_rounds)[-1]
-            print(f"testovací kolo {practice_rounds}", flush=True)
-            ask_key(session, "practice_start", (START_KEY,))
-            run_sets(session, starts, digits, practice=True)
-            choice = ask_key(
-                session, "practice_end", (PRACTICE_REPEAT_KEY, PRACTICE_CONTINUE_KEY)
-            )
-            repeat = choice == PRACTICE_REPEAT_KEY
+        practice_rounds = run_practice(session, seed)
         run_sets(session, plan, set_digits, practice=False)
 
     meta = finish_meta(

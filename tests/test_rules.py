@@ -126,3 +126,22 @@ def test_module_layers(name: str) -> None:
         m.split(".")[0] for m in imported_modules(list(ast.walk(parse(ROOT / name))))
     }
     assert not modules & FORBIDDEN_IMPORTS[name]
+
+
+def test_psychopy_imported_after_quieting_log() -> None:
+    """main.py načte PsychoPy (visual, keyboard, screens) až po ztišení logování konzole."""
+    body = parse(ROOT / "main.py").body
+    quiet = next(
+        i
+        for i, node in enumerate(body)
+        if isinstance(node, ast.Expr) and "setLevel" in ast.unparse(node)
+    )
+    loud = {"screens", "pyglet", "psychopy.visual", "psychopy.hardware"}
+    for i, node in enumerate(body):
+        names = imported_modules([node])
+        if isinstance(node, ast.ImportFrom) and node.module == "psychopy":
+            names |= {f"psychopy.{alias.name}" for alias in node.names}
+        if names & loud:
+            assert i > quiet, (
+                f"main.py:{node.lineno} importuje {names & loud} před setLevel"
+            )

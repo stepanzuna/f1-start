@@ -204,6 +204,8 @@ def test_parse_args_seed() -> None:
     for args in (
         ["--seed=42"],
         ["--sim", "--seed=x"],
+        ["--sim", "--seed=²"],
+        ["--sim", f"--seed={2**31}"],
         ["--sim", "--seed=1", "--seed=2"],
     ):
         with pytest.raises(ValueError, match="--seed"):

@@ -462,9 +462,10 @@ def parse_args(args: list[str]) -> RunOptions:
             f"Neznámý argument {unknown[0]!r}. Povolené: {', '.join(allowed)}, {seed_prefix}N."
         )
     simulated = SIM_FLAG in args or SIM_ESCAPE_FLAG in args
-    if seeds and not (len(seeds) == 1 and seeds[0].isdigit() and simulated):
+    valid_seed = len(seeds) == 1 and seeds[0].isdecimal() and int(seeds[0]) < SEED_MAX
+    if seeds and not (valid_seed and simulated):
         raise ValueError(
-            f"{seed_prefix}N jde jen jednou, s celým číslem a se simulací."
+            f"{seed_prefix}N jde jen jednou, s celým číslem 0 … {SEED_MAX - 1} a se simulací."
         )
     return RunOptions(
         simulated=simulated,
