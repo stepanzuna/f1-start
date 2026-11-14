@@ -246,7 +246,7 @@ Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do přís
 1. No-go v sadě s číslicemi v testovacím kole (část 2: číslice → 3 starty → vybavení):
    *návrh (implementováno):* 1 ze 3 startů je no-go (`PRACTICE_SET_NOGO = 1`), aby si účastník
    vyzkoušel vlajku i pod paměťovou zátěží (v ostré části mají sady no-go taky).
-   Alternativa: 0 (sada jen s go starty). *Čeká na potvrzení (14. 11. 2026 dovysvětleno).*
+   Alternativa: 0 (sada jen s go starty). *Potvrzeno uživatelem 14. 11. 2026.*
 
 Rozhodnuto 14. 11. 2026 (uživatel):
 - Hláška „Správně“ / „Správně bylo: 4 7“ po vybavení v testovacím kole svítí 2 s
