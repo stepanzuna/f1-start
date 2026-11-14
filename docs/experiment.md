@@ -242,23 +242,24 @@ zopakuje ho (`R`) a pokračuje mezerníkem. `--sim-escape` stiskne Escape v 19. 
 Otázky z 13. 11. 2026 (první várka) jsou rozhodnuté a zapsané v sekcích výše.
 Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do příslušné sekce.
 
-**Krok 8 (testovací kolo), zatím implementováno podle návrhu:**
-1. No-go v sadě části 2: *návrh:* 1 ze 3 startů (`PRACTICE_SET_NOGO = 1`), aby si účastník
-   vyzkoušel vlajku i pod paměťovou zátěží. Alternativa: 0 (sada jen s go starty).
-2. Délka hlášky „Správně“ / „Správně bylo: 4 7“ po vybavení: *návrh:* 2 s
-   (`RECALL_FEEDBACK_DURATION`).
-3. Prodlevy a pořadí v testovacím kole: *návrh (implementováno):* sada části 2 má 3 různé
-   prodlevy ze 4 (náhodně), no-go v obou částech na náhodném místě (může být i první start).
-   Mezi částí 1 a 2 není předěl, číslice se objeví hned po pauze posledního startu části 1.
-4. Texty úvodní obrazovky a obrazovky po testovacím kole (viz „Testovací kolo“): *návrh:*
-   schválit spolu s ostatními texty instrukcí v kroku 9.
+**Krok 8 (testovací kolo)**
+1. No-go v sadě s číslicemi v testovacím kole (část 2: číslice → 3 starty → vybavení):
+   *návrh (implementováno):* 1 ze 3 startů je no-go (`PRACTICE_SET_NOGO = 1`), aby si účastník
+   vyzkoušel vlajku i pod paměťovou zátěží (v ostré části mají sady no-go taky).
+   Alternativa: 0 (sada jen s go starty). *Čeká na potvrzení (14. 11. 2026 dovysvětleno).*
 
-**Krok 9 (průběh sezení)**
-5. Celkové zhodnocení na konci sezení (nápad uživatele 14. 11. 2026; v ostré části žádná
-   zpětná vazba k vybavení, to zůstává). *Návrh:* závěrečná obrazovka po poděkování ukáže
-   souhrn z ostré části: průměrný reakční čas (go), počet předčasných startů, počet startů
-   pod vlajkou z celkového počtu no-go a podíl správně vybavených sad, zvlášť pro 2 a 6 číslic.
-   Zobrazí se až po uložení všech dat, takže měření neovlivní.
+Rozhodnuto 14. 11. 2026 (uživatel):
+- Hláška „Správně“ / „Správně bylo: 4 7“ po vybavení v testovacím kole svítí 2 s
+  (`RECALL_FEEDBACK_DURATION`).
+- Prodlevy v testovacím kole náhodně (sada části 2 má 3 různé ze 4, no-go na náhodném místě).
+  Mezi částí 1 a 2 se ukáže krátký text „Teď si vyzkoušíte sadu s číslicemi“
+  (implementuje krok 9 spolu s ostatními texty).
+- Texty obrazovek testovacího kola se schválí s ostatními texty v kroku 9.
+- V ostré části žádná zpětná vazba k vybavení (potvrzeno).
+- Na konci sezení celkové zhodnocení (krok 9): závěrečná obrazovka po poděkování ukáže souhrn
+  z ostré části: průměrný reakční čas (go), počet předčasných startů, starty pod vlajkou
+  z celkového počtu no-go a podíl správně vybavených sad, zvlášť pro 2 a 6 číslic. Zobrazí se
+  až po uložení všech dat, takže měření neovlivní.
 
 ## Poznámky k analýze
 
