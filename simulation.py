@@ -11,9 +11,11 @@ from types import SimpleNamespace
 from config import (
     BACKSPACE_KEY,
     DIGITS,
+    END_KEY,
     FLAG_HEIGHT,
     FLAG_POS,
     FLAG_WIDTH,
+    INSTRUCTION_SCREENS,
     LAMP_RADIUS,
     LAMP_SPACING,
     LAMP_Y,
@@ -21,6 +23,7 @@ from config import (
     PRACTICE_CONTINUE_KEY,
     PRACTICE_REPEAT_KEY,
     SIM_EARLY_PRESS,
+    SIM_EFFORT_RATINGS,
     SIM_GO_CYCLE,
     SIM_INTRO_KEYS,
     SIM_KEYBOARD_BACKEND,
@@ -40,6 +43,7 @@ from logic import (
     digits_in_order,
     group_sets,
     outcome_without_press,
+    split_blocks,
 )
 
 
@@ -105,39 +109,55 @@ def sim_recall_keys(digits: str, set_number: int) -> list[str]:
 
 def sim_sequence(
     block_order: str, seed: int, short: bool
-) -> tuple[list[Start], list[list[str]], list[str]]:
+) -> tuple[list[Start], list[list[str]], list[list[str]]]:
     """Co simulace projde: SIM_PRACTICE_ROUNDS testovacích kol, pak ostrou část.
 
-    Vrací (všechny starty v pořadí, číslice sad po testovacích kolech, číslice ostrých sad).
+    Vrací (všechny starty v pořadí, číslice sad po testovacích kolech, číslice ostrých sad
+    po blocích).
     """
     rounds = build_practice(seed, SIM_PRACTICE_ROUNDS)
     plan, digits = build_session(block_order, seed, short)
     starts = [start for round_starts, _ in rounds for start in round_starts] + plan
     practice_digits = [[d for d in digits_in_order(s, ds) if d] for s, ds in rounds]
-    main_digits = [d for d in digits_in_order(plan, digits) if d]
+    main_digits = [
+        [d for d in digits_in_order(block, digits) if d] for block in split_blocks(plan)
+    ]
     return starts, practice_digits, main_digits
 
 
-def make_sim_typed_keys(
-    practice_digits: list[list[str]], main_digits: list[str]
-) -> list[str]:
-    """Všechny klávesy simulace: úvodní obrazovky, vybavení a volba po testovacím kole.
+def sim_effort(block: int) -> str:
+    """Hodnocení bloku (od 1) na Paasově škále, které simulace napíše."""
+    return SIM_EFFORT_RATINGS[(block - 1) % len(SIM_EFFORT_RATINGS)]
 
-    practice_digits jsou číslice sad po kolech. Před každým testovacím kolem mezerník
-    (úvodní obrazovka), po každém kromě posledního R (zopakovat), po posledním mezerník.
+
+def make_sim_typed_keys(
+    practice_digits: list[list[str]], main_digits: list[list[str]]
+) -> list[str]:
+    """Všechny klávesy simulace v pořadí obrazovek celého sezení.
+
+    Úvodní obrazovky, instrukce (mezerník), testovací kola (úvod, předěl před sadou,
+    vybavení, R / mezerník), začátek měření, po každém bloku vybavení jeho sad, hodnocení
+    a pauza (po posledním bloku ne) a závěrečná obrazovka.
     """
     keys = list(SIM_INTRO_KEYS)
+    keys += [START_KEY] * len(INSTRUCTION_SCREENS)
     set_number = 0
     for round_number, round_digits in enumerate(practice_digits, start=1):
-        keys.append(START_KEY)  # úvodní obrazovka testovacího kola
+        keys += [START_KEY, START_KEY]  # úvod testovacího kola, předěl před sadou
         for digits in round_digits:
             set_number += 1
             keys += sim_recall_keys(digits, set_number)
         last = round_number == len(practice_digits)
         keys.append(PRACTICE_CONTINUE_KEY if last else PRACTICE_REPEAT_KEY)
-    for digits in main_digits:
-        set_number += 1
-        keys += sim_recall_keys(digits, set_number)
+    keys.append(START_KEY)  # začátek měření
+    for block, block_digits in enumerate(main_digits, start=1):
+        for digits in block_digits:
+            set_number += 1
+            keys += sim_recall_keys(digits, set_number)
+        keys.append(sim_effort(block))
+        if block < len(main_digits):
+            keys.append(START_KEY)  # pauza mezi bloky
+    keys.append(END_KEY)
     return keys
 
 

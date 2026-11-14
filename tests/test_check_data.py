@@ -28,6 +28,7 @@ from logic import (
     write_meta,
 )
 from simulation import (
+    sim_effort,
     sim_recall_answer,
 )
 
@@ -102,6 +103,10 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
     )
     if not aborted:
         meta = finish_meta(meta, SAMPLE_TIME + timedelta(minutes=5), 1, len(rounds))
+        ratings = (
+            [int(sim_effort(b)) for b in range(1, 5)] if simulated else [5, 4, 6, 5]
+        )
+        meta = meta | {"effort_ratings": ratings}
     write_meta(companion_path(csv_path, META_SUFFIX), meta)
     companion_path(csv_path, LOG_SUFFIX).write_text("", encoding="utf-8")
     return csv_path
@@ -462,3 +467,22 @@ def test_practice_must_come_first(tmp_path: Path) -> None:
     moved = [header, *main_rows[:3], *practice, *main_rows[3:]]
     csv_path.write_text("\n".join(moved) + "\n", encoding="utf-8")
     assert any("není celé před ostrou částí" in p for p in check_session(csv_path)[1])
+
+
+def test_effort_ratings(tmp_path: Path) -> None:
+    """Dokončené sezení: 4 hodnocení 1–9; chybějící nebo mimo rozsah je problém."""
+    csv_path = write_session(tmp_path)
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    for ratings, expected in (([5, 4, 6], "3 hodnocení"), ([5, 4, 6, 10], "1–9")):
+        write_meta(meta_path, meta | {"effort_ratings": ratings})
+        assert any(expected in p for p in check_session(csv_path)[1]), ratings
+
+
+def test_effort_ratings_simulation(tmp_path: Path) -> None:
+    """U simulace musí hodnocení odpovídat tomu, co simulace napsala."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME)
+    make_simulated(csv_path)
+    assert check_session(csv_path)[1] == []
+    make_simulated(csv_path, effort_ratings=[9, 9, 9, 9])
+    assert any("simulace hodnotila" in p for p in check_session(csv_path)[1])

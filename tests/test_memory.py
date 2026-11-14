@@ -7,6 +7,7 @@ import pytest
 
 from config import (
     DIGITS_PER_LOAD,
+    INSTRUCTION_SCREENS,
     SIM_INTRO_KEYS,
     SIM_RECALL_CYCLE,
     STARTS_PER_SET,
@@ -21,6 +22,7 @@ from logic import (
 )
 from simulation import (
     make_sim_typed_keys,
+    sim_effort,
     sim_recall_answer,
     sim_recall_keys,
 )
@@ -148,10 +150,18 @@ def test_sim_recall_patterns() -> None:
 
 
 def test_make_sim_typed_keys() -> None:
-    """Úvod, testovací kola (R mezi nimi, mezerník po posledním), pak ostré sady."""
-    keys = make_sim_typed_keys([["47"], ["35"]], ["093182"])
+    """Pořadí kláves celého sezení: úvod, instrukce, testovací kola, bloky, závěr."""
+    keys = make_sim_typed_keys([["47"], ["35"]], [["093182"], ["12"]])
     assert keys[: len(SIM_INTRO_KEYS)] == list(SIM_INTRO_KEYS)
     rest = keys[len(SIM_INTRO_KEYS) :]
-    expected = ["space", *sim_recall_keys("47", 1), "r"]
-    expected += ["space", *sim_recall_keys("35", 2), "space"]
-    assert rest == expected + sim_recall_keys("093182", 3)
+    expected = ["space"] * len(INSTRUCTION_SCREENS)
+    expected += ["space", "space", *sim_recall_keys("47", 1), "r"]
+    expected += ["space", "space", *sim_recall_keys("35", 2), "space"]
+    expected += ["space"]  # začátek měření
+    expected += [*sim_recall_keys("093182", 3), sim_effort(1), "space"]
+    expected += [
+        *sim_recall_keys("12", 4),
+        sim_effort(2),
+        "space",
+    ]  # poslední mezerník = konec
+    assert rest == expected

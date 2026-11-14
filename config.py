@@ -62,6 +62,14 @@ RECALL_FEEDBACK_DURATION = 2.0  # s, hláška ke správnosti vybavení (jen test
 PRACTICE_REPEAT_KEY = "r"
 PRACTICE_CONTINUE_KEY = "space"
 START_KEY = "space"  # obrazovky „… stiskněte mezerník“ (úvod testovacího kola)
+END_KEY = "space"  # závěrečná obrazovka (zavře experimentátor)
+INSTRUCTION_SCREENS = (
+    "instructions_1",
+    "instructions_2",
+    "instructions_3",
+    "instructions_4",
+)
+EFFORT_DIGITS = "123456789"  # Paasova škála 1–9
 
 # Na podmínku a prodlevu (docs/experiment.md, „Plán startů“); podmínka = 2 bloky
 GO_PER_FOREPERIOD = 9
@@ -149,7 +157,56 @@ TEXTS = {
         "effort_low": "1 = velmi, velmi nízké úsilí",
         "effort_mid": "5 = ani nízké, ani vysoké",
         "effort_high": "9 = velmi, velmi vysoké úsilí",
-        "block_pause": "Pauza. Až budete připraveni, stiskněte mezerník.",
+        "block_pause": (
+            "Pauza.\n\n"
+            "Další bude blok {next_block} ze {n_blocks}.\n"
+            "Až budete připraveni, stiskněte mezerník."
+        ),
+        "instructions_1": (
+            "Vítejte a děkujeme za účast.\n\n"
+            "Budete startovat jako jezdec formule 1 a zároveň si pamatovat číslice.\n"
+            "Celé měření trvá asi 20 minut.\n\n"
+            "Mezerník = dál"
+        ),
+        "instructions_2": (
+            "Na obrazovce je semafor s pěti světly. Světla se postupně rozsvítí\n"
+            "a po chvíli všechna najednou zhasnou.\n\n"
+            "Jakmile zhasnou, co nejrychleji stiskněte mezerník.\n"
+            "Nestiskněte ho dřív, to je předčasný start.\n\n"
+            "Mezerník = dál"
+        ),
+        "instructions_3": (
+            "Někdy se ve chvíli zhasnutí objeví žlutá vlajka.\n"
+            "Pak mezerník nemačkejte a počkejte na další start.\n\n"
+            "Mezerník = dál"
+        ),
+        "instructions_4": (
+            "Před každými třemi starty se na chvíli ukážou číslice. Zapamatujte si je.\n"
+            "Po třech startech je napište ve stejném pořadí a potvrďte Enterem.\n\n"
+            "Obě úlohy jsou stejně důležité: reagujte rychle a přesně\n"
+            "a zároveň si číslice zapamatujte.\n\n"
+            "Mezerník = dál"
+        ),
+        "practice_set_intro": (
+            "Teď si vyzkoušíte sadu s číslicemi.\n\nMezerník = začít"
+        ),
+        "main_start": (
+            "Teď začíná měření.\n\n"
+            "Má {n_blocks} bloky, mezi nimi si můžete odpočinout.\n"
+            "Zpětnou vazbu k číslicím už neuvidíte.\n\n"
+            "Mezerník = začít"
+        ),
+        "effort_hint": "Odpovězte stiskem čísla 1–9.",
+        "end": (
+            "Měření je hotové, děkujeme!\n\n"
+            "Vaše výsledky:\n"
+            "Průměrná reakce: {mean_rt} ms\n"
+            "Předčasné starty: {false_starts} z {starts}\n"
+            "Starty pod žlutou vlajkou: {commissions} z {nogo}\n"
+            "Správně zapamatované číslice:\n"
+            "2 číslice {recall_low} %, 6 číslic {recall_high} %\n\n"
+            "Zavolejte prosím experimentátora."
+        ),
         "practice_start": (
             "Testovací kolo\n\n"
             "Vyzkoušíte si několik startů a jednu sadu s číslicemi.\n"
@@ -174,7 +231,54 @@ TEXTS = {
         "effort_low": "1 = very, very low mental effort",
         "effort_mid": "5 = neither low nor high mental effort",
         "effort_high": "9 = very, very high mental effort",
-        "block_pause": "Break. When you are ready, press the space bar.",
+        "block_pause": (
+            "Break.\n\n"
+            "Next is block {next_block} of {n_blocks}.\n"
+            "When you are ready, press the space bar."
+        ),
+        "instructions_1": (
+            "Welcome and thank you for taking part.\n\n"
+            "You will start like a Formula 1 driver and remember digits at the same time.\n"
+            "The whole session takes about 20 minutes.\n\n"
+            "Space = next"
+        ),
+        "instructions_2": (
+            "The screen shows a start light with five lamps. The lamps light up one by one\n"
+            "and after a moment all go out at once.\n\n"
+            "As soon as they go out, press the space bar as fast as you can.\n"
+            "Do not press it earlier, that is a false start.\n\n"
+            "Space = next"
+        ),
+        "instructions_3": (
+            "Sometimes a yellow flag appears at the moment the lamps go out.\n"
+            "Then do not press the space bar and wait for the next start.\n\n"
+            "Space = next"
+        ),
+        "instructions_4": (
+            "Before every three starts, digits appear for a moment. Remember them.\n"
+            "After the three starts, type them in the same order and press Enter.\n\n"
+            "Both tasks are equally important: react quickly and accurately\n"
+            "and remember the digits.\n\n"
+            "Space = next"
+        ),
+        "practice_set_intro": ("Now you will try a set with digits.\n\nSpace = start"),
+        "main_start": (
+            "The experiment starts now.\n\n"
+            "It has {n_blocks} blocks, you can rest between them.\n"
+            "You will no longer see feedback on the digits.\n\n"
+            "Space = start"
+        ),
+        "effort_hint": "Answer by pressing a number 1–9.",
+        "end": (
+            "The session is finished, thank you!\n\n"
+            "Your results:\n"
+            "Average reaction: {mean_rt} ms\n"
+            "False starts: {false_starts} of {starts}\n"
+            "Starts under the yellow flag: {commissions} of {nogo}\n"
+            "Digits remembered correctly:\n"
+            "2 digits {recall_low} %, 6 digits {recall_high} %\n\n"
+            "Please call the experimenter."
+        ),
         "practice_start": (
             "Practice round\n\n"
             "You will try a few starts and one set with digits.\n"
@@ -217,6 +321,7 @@ SIM_ESCAPE_FLAG = (
 # 19 = prostřední start 2. ostré sady, rozdělaná sada se nesmí zapsat.
 SIM_ESCAPE_AT = 19
 SIM_PRACTICE_ROUNDS = 2  # simulace testovací kolo jednou zopakuje (R), pak mezerník
+SIM_EFFORT_RATINGS = ("3", "6", "4", "8")  # hodnocení bloků 1–4 na Paasově škále
 SIM_NICK = "sim"
 SIM_LANGUAGE = "en"
 # Klávesy, které simulace „napíše“ na úvodních obrazovkách: příliš krátký nick (chyba),

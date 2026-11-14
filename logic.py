@@ -20,6 +20,7 @@ from config import (
     DIGITS_BLANK,
     DIGITS_DURATION,
     DIGITS_PER_LOAD,
+    EFFORT_DIGITS,
     ENTER_KEYS,
     FEEDBACK_KEYS,
     FOREPERIODS,
@@ -238,6 +239,48 @@ def make_set_digits(
         if key not in digits:
             digits[key] = make_digits(start.load, rng)
     return digits
+
+
+def split_blocks(plan: list[Start]) -> list[list[Start]]:
+    """Rozdělí plán na bloky (po sobě jdoucí starty se stejným blokem)."""
+    return [
+        list(starts) for _, starts in itertools.groupby(plan, key=lambda s: s.block)
+    ]
+
+
+def effort_rating(char: str) -> int | None:
+    """Hodnocení na Paasově škále z napsaného znaku (i česká horní řada), jinak None."""
+    digit = recall_char(char)
+    return int(digit) if len(digit) == 1 and digit in EFFORT_DIGITS else None
+
+
+def session_summary(rows: list[dict[str, object]]) -> dict[str, object]:
+    """Zhodnocení ostré části pro závěrečnou obrazovku (řádky z make_row).
+
+    Průměrná reakce z go startů, předčasné starty (jump_start i anticipation), starty pod
+    vlajkou z no-go startů a podíl správně vybavených sad podle zátěže (v %).
+    """
+    main = [row for row in rows if row["block"] != PRACTICE_BLOCK]
+    go_rts = [row["rt_ms"] for row in main if row["outcome"] == "go"]
+    sets: dict[tuple[object, object], tuple[object, object]] = {}
+    for row in main:
+        sets[(row["block"], row["set_index"])] = (row["load"], row["recall_correct"])
+
+    def recall_percent(load: str) -> str:
+        results = [correct for set_load, correct in sets.values() if set_load == load]
+        return str(round(100 * sum(results) / len(results))) if results else "–"
+
+    return {
+        "mean_rt": str(round(sum(go_rts) / len(go_rts))) if go_rts else "–",
+        "false_starts": sum(
+            row["outcome"] in ("jump_start", "anticipation") for row in main
+        ),
+        "starts": len(main),
+        "commissions": sum(row["outcome"] == "commission" for row in main),
+        "nogo": sum(bool(row["is_nogo"]) for row in main),
+        "recall_low": recall_percent("low"),
+        "recall_high": recall_percent("high"),
+    }
 
 
 def recall_char(char: str) -> str:

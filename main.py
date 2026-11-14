@@ -15,6 +15,7 @@ from config import (
     DATA_DIR_NAME,
     DIGITS_HEIGHT,
     DROPPED_FRAME_WARNINGS_MAX,
+    END_KEY,
     EXPECTED_FRAME_RATE,
     FEEDBACK_HEIGHT,
     FEEDBACK_Y,
@@ -24,6 +25,7 @@ from config import (
     FLAG_WIDTH,
     FRAME_RATE_TOLERANCE,
     INPUT_Y,
+    INSTRUCTION_SCREENS,
     KEYBOARD_BACKEND,
     LAMP_RADIUS,
     LAMP_SPACING,
@@ -57,6 +59,7 @@ from logic import (
     classify_press,
     companion_path,
     count_completed_sessions,
+    effort_rating,
     feedback_text,
     finish_meta,
     git_commit,
@@ -71,7 +74,9 @@ from logic import (
     parse_args,
     recall_feedback_text,
     session_data_dir,
+    session_summary,
     short_plan_allowed,
+    split_blocks,
     write_meta,
 )
 from simulation import (
@@ -322,6 +327,9 @@ class Session:
     screens_dir: Path | None  # jen simulace: kam uložit obrázky obrazovek
     captured: set[str] = field(default_factory=set)
     trial_index: int = 0
+    rows: list[dict[str, object]] = field(
+        default_factory=list
+    )  # pro závěrečné zhodnocení
 
 
 def capture_once(session: Session, name: str) -> Path | None:
@@ -332,12 +340,15 @@ def capture_once(session: Session, name: str) -> Path | None:
     return session.screens_dir / f"{session.trial_index:03d}_{name}.png"
 
 
-def ask_key(session: Session, text_key: str, keys: tuple[str, ...]) -> str:
+def ask_key(
+    session: Session, text_key: str, keys: tuple[str, ...], **fields: object
+) -> str:
     """Text pro účastníka (ve zvoleném jazyce), čeká na jednu z kláves a vrátí ji.
 
-    Klávesy se čtou až po vykreslení prvního snímku, bez keyList (viz CLAUDE.md).
+    fields se dosadí do textu ({next_block} apod.). Klávesy se čtou až po vykreslení
+    prvního snímku, bez keyList (viz CLAUDE.md).
     """
-    set_text(session.message, TEXTS[session.language][text_key])
+    set_text(session.message, TEXTS[session.language][text_key].format(**fields))
     capture_path = capture_once(session, text_key)
     session.kb.clearEvents()
     while True:
@@ -423,20 +434,20 @@ def run_set(session: Session, starts: list[Start], digits: str, practice: bool) 
             )
     # Zápis po sadě (docs/experiment.md, Data); část 1 testovacího kola po startu.
     for index, start, outcome, rt, dropped in results:
-        session.writer.writerow(
-            make_row(
-                participant=session.nick,
-                machine=session.machine,
-                start=start,
-                trial_index=index,
-                outcome=outcome,
-                rt=rt,
-                dropped_frames=dropped,
-                written_at=datetime.now().astimezone(),
-                digits_shown=digits,
-                digits_typed=typed,
-            )
+        row = make_row(
+            participant=session.nick,
+            machine=session.machine,
+            start=start,
+            trial_index=index,
+            outcome=outcome,
+            rt=rt,
+            dropped_frames=dropped,
+            written_at=datetime.now().astimezone(),
+            digits_shown=digits,
+            digits_typed=typed,
         )
+        session.writer.writerow(row)
+        session.rows.append(row)
     session.data_file.flush()
     logging.flush()
 
@@ -462,12 +473,75 @@ def run_practice(session: Session, seed: int) -> int:
         starts, digits = build_practice(seed, practice_rounds)[-1]
         print(f"testovací kolo {practice_rounds}", flush=True)
         ask_key(session, "practice_start", (START_KEY,))
-        run_sets(session, starts, digits, practice=True)
+        without_digits = [s for s in starts if not digits[(s.block, s.set_index)]]
+        with_digits = [s for s in starts if digits[(s.block, s.set_index)]]
+        run_sets(session, without_digits, digits, practice=True)
+        ask_key(session, "practice_set_intro", (START_KEY,))
+        run_sets(session, with_digits, digits, practice=True)
         choice = ask_key(
             session, "practice_end", (PRACTICE_REPEAT_KEY, PRACTICE_CONTINUE_KEY)
         )
         repeat = choice == PRACTICE_REPEAT_KEY
     return practice_rounds
+
+
+def show_instructions(session: Session) -> None:
+    """Úvodní instrukce pro účastníka, obrazovka po obrazovce (mezerník = dál)."""
+    for text_key in INSTRUCTION_SCREENS:
+        ask_key(session, text_key, (START_KEY,))
+
+
+def ask_effort(session: Session) -> int:
+    """Paasova škála po bloku: otázka a popisky, odpověď klávesou 1–9."""
+    texts = TEXTS[session.language]
+    set_text(
+        session.message,
+        f"{texts['effort_question']}\n\n{texts['effort_low']}\n{texts['effort_mid']}\n"
+        f"{texts['effort_high']}\n\n{texts['effort_hint']}",
+    )
+    capture_path = capture_once(session, "effort")
+    session.kb.clearEvents()
+    while True:
+        session.message.draw()
+        if capture_path is not None:
+            save_frame(session.win, capture_path)
+            capture_path = None
+        session.win.flip()
+        for key in read_screen_keys(session.win, session.kb):
+            rating = effort_rating(key.code or "")
+            if rating is not None:
+                return rating
+
+
+def run_main(
+    session: Session,
+    plan: list[Start],
+    set_digits: dict[tuple[int, int], str],
+    meta: dict[str, object],
+    meta_path: Path,
+) -> dict[str, object]:
+    """Ostrá část po blocích: po každém bloku Paasova škála (hned do meta) a pauza.
+
+    Vrátí meta s hodnoceními; přerušené sezení tak má hodnocení dokončených bloků.
+    """
+    blocks = split_blocks(plan)
+    ask_key(session, "main_start", (START_KEY,), n_blocks=len(blocks))
+    ratings: list[int] = []
+    for number, block in enumerate(blocks, start=1):
+        run_sets(session, block, set_digits, practice=False)
+        ratings.append(ask_effort(session))
+        print(f"blok {number}: hodnocení úsilí {ratings[-1]}", flush=True)
+        meta = {**meta, "effort_ratings": list(ratings)}
+        write_meta(meta_path, meta)
+        if number < len(blocks):
+            ask_key(
+                session,
+                "block_pause",
+                (START_KEY,),
+                next_block=number + 1,
+                n_blocks=len(blocks),
+            )
+    return meta
 
 
 def read_options() -> RunOptions:
@@ -668,14 +742,17 @@ def main() -> None:
             typed=make_text(win, INPUT_Y, height=DIGITS_HEIGHT),
             screens_dir=screens_dir if simulated else None,
         )
+        show_instructions(session)
         practice_rounds = run_practice(session, seed)
-        run_sets(session, plan, set_digits, practice=False)
+        meta = run_main(session, plan, set_digits, meta, meta_path)
 
     meta = finish_meta(
         meta, datetime.now().astimezone(), win.nDroppedFrames, practice_rounds
     )
     write_meta(meta_path, meta)
     print(f"Sezení dokončeno, vypadlé snímky celkem: {win.nDroppedFrames}", flush=True)
+    # Zhodnocení až po uložení všech dat, takže měření neovlivní.
+    ask_key(session, "end", (END_KEY,), **session_summary(session.rows))
     win.close()
     core.quit()
 

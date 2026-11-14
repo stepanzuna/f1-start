@@ -174,8 +174,217 @@ jazyky mají stejné texty). Anglické znění doplněno 13. 11. 2026, překlad 
   (“Break. When you are ready, press the space bar.”)
 - Vybavení číslic: „Napište číslice a stiskněte Enter.“ (“Type the digits and press Enter.”),
   v testovacím kole „Správně“ / „Správně bylo: 4 7“ (“Correct” / “The correct answer was: 4 7”).
-- Texty instrukcí: Claude je sepíše do tohoto dokumentu (česky i anglicky) ke schválení
-  před krokem 9.
+- Texty instrukcí a dalších obrazovek: viz „Texty ke schválení (krok 9)“ níže.
+
+### Texty ke schválení (krok 9, 14. 11. 2026)
+
+Všechny texty obrazovek pro účastníka v pořadí, jak se v sezení objeví. Vygenerováno
+z `TEXTS` v `config.py` (program je zobrazuje přesně takto). Proměnné ve složených
+závorkách program doplní. Paasova škála a hlášky zpětné vazby jsou schválené výše.
+
+**Instrukce 1 (úvod)** (`instructions_1`)
+
+Česky:
+
+> Vítejte a děkujeme za účast.
+>
+> Budete startovat jako jezdec formule 1 a zároveň si pamatovat číslice.
+> Celé měření trvá asi 20 minut.
+>
+> Mezerník = dál
+
+Anglicky:
+
+> Welcome and thank you for taking part.
+>
+> You will start like a Formula 1 driver and remember digits at the same time.
+> The whole session takes about 20 minutes.
+>
+> Space = next
+
+**Instrukce 2 (semafor)** (`instructions_2`)
+
+Česky:
+
+> Na obrazovce je semafor s pěti světly. Světla se postupně rozsvítí
+> a po chvíli všechna najednou zhasnou.
+>
+> Jakmile zhasnou, co nejrychleji stiskněte mezerník.
+> Nestiskněte ho dřív, to je předčasný start.
+>
+> Mezerník = dál
+
+Anglicky:
+
+> The screen shows a start light with five lamps. The lamps light up one by one
+> and after a moment all go out at once.
+>
+> As soon as they go out, press the space bar as fast as you can.
+> Do not press it earlier, that is a false start.
+>
+> Space = next
+
+**Instrukce 3 (žlutá vlajka)** (`instructions_3`)
+
+Česky:
+
+> Někdy se ve chvíli zhasnutí objeví žlutá vlajka.
+> Pak mezerník nemačkejte a počkejte na další start.
+>
+> Mezerník = dál
+
+Anglicky:
+
+> Sometimes a yellow flag appears at the moment the lamps go out.
+> Then do not press the space bar and wait for the next start.
+>
+> Space = next
+
+**Instrukce 4 (číslice)** (`instructions_4`)
+
+Česky:
+
+> Před každými třemi starty se na chvíli ukážou číslice. Zapamatujte si je.
+> Po třech startech je napište ve stejném pořadí a potvrďte Enterem.
+>
+> Obě úlohy jsou stejně důležité: reagujte rychle a přesně
+> a zároveň si číslice zapamatujte.
+>
+> Mezerník = dál
+
+Anglicky:
+
+> Before every three starts, digits appear for a moment. Remember them.
+> After the three starts, type them in the same order and press Enter.
+>
+> Both tasks are equally important: react quickly and accurately
+> and remember the digits.
+>
+> Space = next
+
+**Úvod testovacího kola** (`practice_start`)
+
+Česky:
+
+> Testovací kolo
+>
+> Vyzkoušíte si několik startů a jednu sadu s číslicemi.
+> Výsledky testovacího kola se nezapočítávají.
+>
+> Mezerník = začít
+
+Anglicky:
+
+> Practice round
+>
+> You will try a few starts and one set with digits.
+> The practice round does not count.
+>
+> Space = start
+
+**Předěl před sadou s číslicemi** (`practice_set_intro`)
+
+Česky:
+
+> Teď si vyzkoušíte sadu s číslicemi.
+>
+> Mezerník = začít
+
+Anglicky:
+
+> Now you will try a set with digits.
+>
+> Space = start
+
+**Konec testovacího kola** (`practice_end`)
+
+Česky:
+
+> Konec testovacího kola.
+>
+> R = zopakovat testovací kolo
+> Mezerník = pokračovat do měření
+
+Anglicky:
+
+> End of the practice round.
+>
+> R = repeat the practice round
+> Space = continue to the experiment
+
+**Začátek měření** (`main_start`)
+
+Česky:
+
+> Teď začíná měření.
+>
+> Má {n_blocks} bloky, mezi nimi si můžete odpočinout.
+> Zpětnou vazbu k číslicím už neuvidíte.
+>
+> Mezerník = začít
+
+Anglicky:
+
+> The experiment starts now.
+>
+> It has {n_blocks} blocks, you can rest between them.
+> You will no longer see feedback on the digits.
+>
+> Space = start
+
+**Pauza mezi bloky** (`block_pause`)
+
+Česky:
+
+> Pauza.
+>
+> Další bude blok {next_block} ze {n_blocks}.
+> Až budete připraveni, stiskněte mezerník.
+
+Anglicky:
+
+> Break.
+>
+> Next is block {next_block} of {n_blocks}.
+> When you are ready, press the space bar.
+
+**Pokyn pod Paasovou škálou** (`effort_hint`)
+
+Česky:
+
+> Odpovězte stiskem čísla 1–9.
+
+Anglicky:
+
+> Answer by pressing a number 1–9.
+
+**Závěr se zhodnocením** (`end`)
+
+Česky:
+
+> Měření je hotové, děkujeme!
+>
+> Vaše výsledky:
+> Průměrná reakce: {mean_rt} ms
+> Předčasné starty: {false_starts} z {starts}
+> Starty pod žlutou vlajkou: {commissions} z {nogo}
+> Správně zapamatované číslice:
+> 2 číslice {recall_low} %, 6 číslic {recall_high} %
+>
+> Zavolejte prosím experimentátora.
+
+Anglicky:
+
+> The session is finished, thank you!
+>
+> Your results:
+> Average reaction: {mean_rt} ms
+> False starts: {false_starts} of {starts}
+> Starts under the yellow flag: {commissions} of {nogo}
+> Digits remembered correctly:
+> 2 digits {recall_low} %, 6 digits {recall_high} %
+>
+> Please call the experimenter.
 
 ## Data
 

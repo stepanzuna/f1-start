@@ -19,6 +19,7 @@ from config import (
     CSV_COLUMNS,
     DATA_DIR_NAME,
     DIGITS_PER_LOAD,
+    EFFORT_DIGITS,
     FOREPERIODS,
     GO_OUTCOMES,
     KEYBOARD_BACKEND,
@@ -52,6 +53,7 @@ from logic import (
 )
 from simulation import (
     expected_outcome,
+    sim_effort,
     sim_recall_answer,
     sim_sequence,
     starts_written_before,
@@ -390,6 +392,28 @@ def check_plan(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]
     return problems
 
 
+def check_effort(meta: dict[str, object]) -> list[str]:
+    """Paasova škála: celé číslo 1–9 za každý dokončený blok, u simulace podle scénáře."""
+    ratings = meta.get("effort_ratings")
+    if not isinstance(ratings, list):
+        return ["meta: effort_ratings není seznam"]
+    problems = []
+    if any(not isinstance(r, int) or not 1 <= r <= len(EFFORT_DIGITS) for r in ratings):
+        problems.append(f"meta: hodnocení úsilí {ratings} nejsou celá čísla 1–9")
+    n_blocks = len(str(meta.get("block_order", "")))  # ABBA / BAAB = 4 bloky
+    if meta.get("aborted") is False and len(ratings) != n_blocks:
+        problems.append(
+            f"dokončené sezení má {len(ratings)} hodnocení úsilí, bloků {n_blocks}"
+        )
+    if len(ratings) > n_blocks:
+        problems.append(f"víc hodnocení úsilí ({len(ratings)}) než bloků ({n_blocks})")
+    if meta.get("simulated"):
+        expected = [int(sim_effort(block)) for block in range(1, len(ratings) + 1)]
+        if ratings != expected:
+            problems.append(f"simulace hodnotila {expected}, v meta je {ratings}")
+    return problems
+
+
 def check_sets(rows: list[dict[str, str]]) -> list[str]:
     """Sady ostré části bez ohledu na seed: 3 řádky, start_in_set 1–3, jedna zátěž."""
     problems = []
@@ -526,6 +550,7 @@ def check_session(csv_path: Path) -> tuple[str, list[str], list[str]]:
     problems.extend(check_digits(rows, bool(meta.get("simulated"))))
     problems.extend(check_plan(meta, rows))
     problems.extend(check_sets(rows))
+    problems.extend(check_effort(meta))
     return summarize(meta, rows), problems, dropped_frame_warnings(rows)
 
 
