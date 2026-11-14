@@ -259,3 +259,8 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   do ostré části v pořádku; vypadlý snímek po prvním stisku se tentokrát neobjevil vůbec.
   Uživatel potvrdil: v ostré části bez zpětné vazby k vybavení; navrhl celkové zhodnocení
   na konci sezení (otázka 5, krok 9). Otázky 1–4 ke kroku 8 implementovány podle návrhu.
+- 2026-11-14: refaktorizace po dohodě (před krokem 9): obrazovky z `main.py` do `screens.py`,
+  simulace z `logic.py` do `simulation.py` (přesun beze změny kódu, 83 definic shodných znak po
+  znaku), `main()` rozdělená na fáze, `run_set`. Ověřeno simulací s pevným seedem (`--seed=N`,
+  jen se simulací): data, meta i obrázky obrazovek shodné pixel po pixelu, plný běh i s Escapem.
+  Test pravidel hlídá vrstvy importů a načtení PsychoPy až po ztišení logování.
