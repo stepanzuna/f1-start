@@ -53,6 +53,7 @@ from config import (
     SETTINGS_SCREEN,
     SIM_SCREENS_SUFFIX,
     SIM_WINDOW_MODE,
+    START_KEY,
     TEST_PREFIX,
     TEXT_COLOR,
     TEXT_HEIGHT,
@@ -514,10 +515,13 @@ def show_message(
         win.flip()
 
 
-def ask_practice_end(session: Session) -> bool:
-    """Konec testovacího kola: R = zopakovat (True), mezerník = pokračovat (False)."""
-    set_text(session.message, TEXTS[session.language]["practice_end"])
-    capture_path = capture_once(session, "practice_end")
+def ask_key(session: Session, text_key: str, keys: tuple[str, ...]) -> str:
+    """Text pro účastníka (ve zvoleném jazyce), čeká na jednu z kláves a vrátí ji.
+
+    Klávesy se čtou až po vykreslení prvního snímku, bez keyList (viz CLAUDE.md).
+    """
+    set_text(session.message, TEXTS[session.language][text_key])
+    capture_path = capture_once(session, text_key)
     session.kb.clearEvents()
     while True:
         session.message.draw()
@@ -526,10 +530,8 @@ def ask_practice_end(session: Session) -> bool:
             capture_path = None
         session.win.flip()
         for key in read_screen_keys(session.win, session.kb):
-            if key.name == PRACTICE_REPEAT_KEY:
-                return True
-            if key.name == PRACTICE_CONTINUE_KEY:
-                return False
+            if key.name in keys:
+                return key.name
 
 
 def run_sets(
@@ -766,8 +768,12 @@ def main() -> None:
             practice_rounds += 1
             starts, digits = build_practice(seed, practice_rounds)[-1]
             print(f"testovací kolo {practice_rounds}", flush=True)
+            ask_key(session, "practice_start", (START_KEY,))
             run_sets(session, starts, digits, practice=True)
-            repeat = ask_practice_end(session)
+            choice = ask_key(
+                session, "practice_end", (PRACTICE_REPEAT_KEY, PRACTICE_CONTINUE_KEY)
+            )
+            repeat = choice == PRACTICE_REPEAT_KEY
         run_sets(session, plan, set_digits, practice=False)
 
     meta = finish_meta(

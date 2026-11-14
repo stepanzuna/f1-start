@@ -150,6 +150,10 @@ mezera asi 80 px). Text se nastaví jednou před pauzou, mimo měřený start.
     vždy stejné. `check_data.py` testovací kola přegeneruje a porovná s CSV.
   - V CSV: část 1 má `set_index` 1–4 a `start_in_set` 1 (zápis po každém startu),
     sada části 2 má `set_index` 5 a `start_in_set` 1–3.
+  - Úvodní obrazovka před každým kolem (přidáno 14. 11. 2026 na žádost uživatele, ve zvoleném
+    jazyce): „Testovací kolo. Vyzkoušíte si několik startů a jednu sadu s číslicemi. Výsledky
+    testovacího kola se nezapočítávají. Mezerník = začít“ (EN: “Practice round. You will try
+    a few starts and one set with digits. The practice round does not count. Space = start”).
   - Obrazovka po kole (ve zvoleném jazyce): „Konec testovacího kola. R = zopakovat testovací
     kolo, Mezerník = pokračovat do měření“ (EN: “End of the practice round. R = repeat the
     practice round, Space = continue to the experiment”).
@@ -246,8 +250,8 @@ Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do přís
 3. Prodlevy a pořadí v testovacím kole: *návrh (implementováno):* sada části 2 má 3 různé
    prodlevy ze 4 (náhodně), no-go v obou částech na náhodném místě (může být i první start).
    Mezi částí 1 a 2 není předěl, číslice se objeví hned po pauze posledního startu části 1.
-4. Text obrazovky po testovacím kole (viz „Testovací kolo“): *návrh:* schválit spolu
-   s ostatními texty instrukcí v kroku 9.
+4. Texty úvodní obrazovky a obrazovky po testovacím kole (viz „Testovací kolo“): *návrh:*
+   schválit spolu s ostatními texty instrukcí v kroku 9.
 
 ## Poznámky k analýze
 

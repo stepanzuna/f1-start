@@ -61,6 +61,7 @@ PRACTICE_LOAD = "low"
 RECALL_FEEDBACK_DURATION = 2.0  # s, hláška ke správnosti vybavení (jen testovací kolo)
 PRACTICE_REPEAT_KEY = "r"
 PRACTICE_CONTINUE_KEY = "space"
+START_KEY = "space"  # obrazovky „… stiskněte mezerník“ (úvod testovacího kola)
 
 # Na podmínku a prodlevu (docs/experiment.md, „Plán startů“); podmínka = 2 bloky
 GO_PER_FOREPERIOD = 9
@@ -147,6 +148,12 @@ TEXTS = {
         "effort_mid": "5 = ani nízké, ani vysoké",
         "effort_high": "9 = velmi, velmi vysoké úsilí",
         "block_pause": "Pauza. Až budete připraveni, stiskněte mezerník.",
+        "practice_start": (
+            "Testovací kolo\n\n"
+            "Vyzkoušíte si několik startů a jednu sadu s číslicemi.\n"
+            "Výsledky testovacího kola se nezapočítávají.\n\n"
+            "Mezerník = začít"
+        ),
         "practice_end": (
             "Konec testovacího kola.\n\n"
             "R = zopakovat testovací kolo\nMezerník = pokračovat do měření"
@@ -166,6 +173,12 @@ TEXTS = {
         "effort_mid": "5 = neither low nor high mental effort",
         "effort_high": "9 = very, very high mental effort",
         "block_pause": "Break. When you are ready, press the space bar.",
+        "practice_start": (
+            "Practice round\n\n"
+            "You will try a few starts and one set with digits.\n"
+            "The practice round does not count.\n\n"
+            "Space = start"
+        ),
         "practice_end": (
             "End of the practice round.\n\n"
             "R = repeat the practice round\nSpace = continue to the experiment"

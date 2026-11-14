@@ -74,6 +74,7 @@ from config import (
     SIM_RECALL_CYCLE,
     SIM_WINDOW_MARGIN,
     SIM_WINDOW_SCALE,
+    START_KEY,
     STARTS_PER_SET,
     TEST_PREFIX,
     TEXTS,
@@ -706,12 +707,13 @@ def make_sim_typed_keys(
 ) -> list[str]:
     """Všechny klávesy simulace: úvodní obrazovky, vybavení a volba po testovacím kole.
 
-    practice_digits jsou číslice sad po kolech. Po každém testovacím kole kromě
-    posledního R (zopakovat), po posledním mezerník.
+    practice_digits jsou číslice sad po kolech. Před každým testovacím kolem mezerník
+    (úvodní obrazovka), po každém kromě posledního R (zopakovat), po posledním mezerník.
     """
     keys = list(SIM_INTRO_KEYS)
     set_number = 0
     for round_number, round_digits in enumerate(practice_digits, start=1):
+        keys.append(START_KEY)  # úvodní obrazovka testovacího kola
         for digits in round_digits:
             set_number += 1
             keys += sim_recall_keys(digits, set_number)

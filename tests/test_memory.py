@@ -150,5 +150,6 @@ def test_make_sim_typed_keys() -> None:
     keys = make_sim_typed_keys([["47"], ["35"]], ["093182"])
     assert keys[: len(SIM_INTRO_KEYS)] == list(SIM_INTRO_KEYS)
     rest = keys[len(SIM_INTRO_KEYS) :]
-    expected = sim_recall_keys("47", 1) + ["r"] + sim_recall_keys("35", 2) + ["space"]
+    expected = ["space", *sim_recall_keys("47", 1), "r"]
+    expected += ["space", *sim_recall_keys("35", 2), "space"]
     assert rest == expected + sim_recall_keys("093182", 3)
