@@ -486,3 +486,21 @@ def test_effort_ratings_simulation(tmp_path: Path) -> None:
     assert check_session(csv_path)[1] == []
     make_simulated(csv_path, effort_ratings=[9, 9, 9, 9])
     assert any("simulace hodnotila" in p for p in check_session(csv_path)[1])
+
+
+def test_effort_ratings_aborted_match_complete_blocks(tmp_path: Path) -> None:
+    """Přerušené sezení: hodnocení jen za bloky, které jsou v CSV celé (nebo o jedno méně)."""
+    csv_path = write_session(tmp_path, aborted=True)
+    lines = csv_path.read_text(encoding="utf-8").splitlines()
+    practice = 7
+    one_block = lines[: 1 + practice + 24]  # hlavička, testovací kolo, celý blok 1
+    csv_path.write_text("\n".join(one_block) + "\n", encoding="utf-8")
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    for ratings, ok in (([], True), ([5], True), ([5, 6], False)):
+        write_meta(meta_path, meta | {"effort_ratings": ratings})
+        problems = check_session(csv_path)[1]
+        assert (not any("hodnocení úsilí" in p for p in problems)) is ok, (
+            ratings,
+            problems,
+        )

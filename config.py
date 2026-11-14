@@ -165,7 +165,7 @@ TEXTS = {
         "instructions_1": (
             "Vítejte a děkujeme za účast.\n\n"
             "Budete startovat jako jezdec formule 1 a zároveň si pamatovat číslice.\n"
-            "Celé měření trvá asi 20 minut.\n\n"
+            "Celé sezení trvá asi 20 minut.\n\n"
             "Mezerník = dál"
         ),
         "instructions_2": (
@@ -177,7 +177,7 @@ TEXTS = {
         ),
         "instructions_3": (
             "Někdy se ve chvíli zhasnutí objeví žlutá vlajka.\n"
-            "Pak mezerník nemačkejte a počkejte na další start.\n\n"
+            "Pak mezerník nemačkejte.\n\n"
             "Mezerník = dál"
         ),
         "instructions_4": (
@@ -251,7 +251,7 @@ TEXTS = {
         ),
         "instructions_3": (
             "Sometimes a yellow flag appears at the moment the lamps go out.\n"
-            "Then do not press the space bar and wait for the next start.\n\n"
+            "Then do not press the space bar.\n\n"
             "Space = next"
         ),
         "instructions_4": (

@@ -171,6 +171,8 @@ jazyky mají stejné texty). Anglické znění doplněno 13. 11. 2026, překlad 
   effort”), 5 = „ani nízké, ani vysoké“ (“neither low nor high mental effort”),
   9 = „velmi, velmi vysoké úsilí“ (“very, very high mental effort”).
 - Pauza mezi bloky: bez pevné délky, text „Pauza. Až budete připraveni, stiskněte mezerník.“
+  Rozšíření o „Další bude blok X ze 4“ a pokyn pod Paasovou škálou („Odpovězte stiskem
+  čísla 1–9.“) čekají na schválení, viz „Texty ke schválení (krok 9)“.
   (“Break. When you are ready, press the space bar.”)
 - Vybavení číslic: „Napište číslice a stiskněte Enter.“ (“Type the digits and press Enter.”),
   v testovacím kole „Správně“ / „Správně bylo: 4 7“ (“Correct” / “The correct answer was: 4 7”).
@@ -189,7 +191,7 @@ závorkách program doplní. Paasova škála a hlášky zpětné vazby jsou schv
 > Vítejte a děkujeme za účast.
 >
 > Budete startovat jako jezdec formule 1 a zároveň si pamatovat číslice.
-> Celé měření trvá asi 20 minut.
+> Celé sezení trvá asi 20 minut.
 >
 > Mezerník = dál
 
@@ -229,14 +231,14 @@ Anglicky:
 Česky:
 
 > Někdy se ve chvíli zhasnutí objeví žlutá vlajka.
-> Pak mezerník nemačkejte a počkejte na další start.
+> Pak mezerník nemačkejte.
 >
 > Mezerník = dál
 
 Anglicky:
 
 > Sometimes a yellow flag appears at the moment the lamps go out.
-> Then do not press the space bar and wait for the next start.
+> Then do not press the space bar.
 >
 > Space = next
 

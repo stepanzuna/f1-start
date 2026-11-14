@@ -392,8 +392,12 @@ def check_plan(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]
     return problems
 
 
-def check_effort(meta: dict[str, object]) -> list[str]:
-    """Paasova škála: celé číslo 1–9 za každý dokončený blok, u simulace podle scénáře."""
+def check_effort(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]:
+    """Paasova škála: celé číslo 1–9 za každý dokončený blok, u simulace podle scénáře.
+
+    U přerušeného sezení odpovídá počet hodnocení blokům, které jsou v CSV celé (nebo o jedno
+    méně, když Escape přišel na obrazovce škály).
+    """
     ratings = meta.get("effort_ratings")
     if not isinstance(ratings, list):
         return ["meta: effort_ratings není seznam"]
@@ -407,6 +411,18 @@ def check_effort(meta: dict[str, object]) -> list[str]:
         )
     if len(ratings) > n_blocks:
         problems.append(f"víc hodnocení úsilí ({len(ratings)}) než bloků ({n_blocks})")
+    planned = meta.get("planned_starts")
+    if meta.get("aborted") is True and isinstance(planned, int) and n_blocks:
+        per_block = Counter(
+            row["block"] for row in rows if row["block"] != str(PRACTICE_BLOCK)
+        )
+        complete = sum(count == planned // n_blocks for count in per_block.values())
+        if len(ratings) not in (complete, complete - 1) and not (
+            complete == 0 and not ratings
+        ):
+            problems.append(
+                f"přerušené sezení: {len(ratings)} hodnocení úsilí, celých bloků v CSV {complete}"
+            )
     if meta.get("simulated"):
         expected = [int(sim_effort(block)) for block in range(1, len(ratings) + 1)]
         if ratings != expected:
@@ -550,7 +566,7 @@ def check_session(csv_path: Path) -> tuple[str, list[str], list[str]]:
     problems.extend(check_digits(rows, bool(meta.get("simulated"))))
     problems.extend(check_plan(meta, rows))
     problems.extend(check_sets(rows))
-    problems.extend(check_effort(meta))
+    problems.extend(check_effort(meta, rows))
     return summarize(meta, rows), problems, dropped_frame_warnings(rows)
 
 
