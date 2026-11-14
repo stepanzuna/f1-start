@@ -46,10 +46,12 @@ from logic import (
     build_practice,
     build_session,
     companion_path,
-    expected_outcome,
     is_valid_nick,
     session_data_dir,
     short_plan_allowed,
+)
+from simulation import (
+    expected_outcome,
     sim_recall_answer,
     sim_sequence,
     starts_written_before,

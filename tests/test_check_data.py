@@ -25,8 +25,10 @@ from logic import (
     finish_meta,
     make_meta,
     make_row,
-    sim_recall_answer,
     write_meta,
+)
+from simulation import (
+    sim_recall_answer,
 )
 
 SAMPLE_TIME = datetime(2026, 11, 13, 9, 5, tzinfo=timezone(timedelta(hours=1)))

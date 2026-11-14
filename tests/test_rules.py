@@ -12,7 +12,16 @@ import config
 
 ROOT = Path(__file__).parent.parent
 SOURCE_FILES = sorted(ROOT.glob("*.py"))
-PSYCHOPY_FREE = ("config.py", "logic.py", "check_data.py")
+PSYCHOPY_FREE = ("config.py", "logic.py", "simulation.py", "check_data.py")
+# Kdo smí importovat koho: nižší vrstva nesmí záviset na vyšší (main → screens → simulation
+# → logic → config), aby čistá logika šla testovat bez okna.
+FORBIDDEN_IMPORTS = {
+    "config.py": {"logic", "simulation", "screens", "main"},
+    "logic.py": {"simulation", "screens", "main"},
+    "simulation.py": {"screens", "main"},
+    "screens.py": {"main"},
+    "check_data.py": {"screens", "main"},
+}
 FORBIDDEN_CALLS = {("time", "sleep"), ("core", "wait"), ("random", "choice")}
 SINGLE_PLATFORM_MODULES = {"AppKit", "Foundation", "objc", "win32api", "ctypes.windll"}
 
@@ -108,3 +117,12 @@ def test_real_window_mode_is_full_screen() -> None:
     """Ostrý běh má režim celé obrazovky; menší okno simulace mezi povolenými není."""
     assert config.WINDOW_MODE in config.WINDOW_MODES
     assert config.SIM_WINDOW_MODE not in config.WINDOW_MODES
+
+
+@pytest.mark.parametrize("name", FORBIDDEN_IMPORTS)
+def test_module_layers(name: str) -> None:
+    """Modul neimportuje vyšší vrstvu (čistá logika zůstane bez PsychoPy a bez okna)."""
+    modules = {
+        m.split(".")[0] for m in imported_modules(list(ast.walk(parse(ROOT / name))))
+    }
+    assert not modules & FORBIDDEN_IMPORTS[name]

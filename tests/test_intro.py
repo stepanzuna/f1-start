@@ -18,7 +18,6 @@ from config import (
 )
 from logic import (
     NickInput,
-    SimulatedKeyboard,
     apply_settings_key,
     assign_block_order,
     count_completed_sessions,
@@ -29,6 +28,9 @@ from logic import (
     nick_from_filename,
     nick_input_key,
     settings_order_note,
+)
+from simulation import (
+    SimulatedKeyboard,
 )
 
 

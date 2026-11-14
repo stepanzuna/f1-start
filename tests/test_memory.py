@@ -18,6 +18,8 @@ from logic import (
     make_digits,
     make_row,
     make_set_digits,
+)
+from simulation import (
     make_sim_typed_keys,
     sim_recall_answer,
     sim_recall_keys,

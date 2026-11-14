@@ -18,15 +18,17 @@ from config import (
 )
 from logic import (
     RunOptions,
-    SimulatedKeyboard,
     Start,
     build_session,
     classify_press,
-    expected_outcome,
-    make_sim_scenario,
     outcome_without_press,
     parse_args,
     session_data_dir,
+)
+from simulation import (
+    SimulatedKeyboard,
+    expected_outcome,
+    make_sim_scenario,
     sim_window_size,
 )
 
