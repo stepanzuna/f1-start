@@ -158,10 +158,7 @@ def test_make_sim_typed_keys() -> None:
     expected += ["space", "space", *sim_recall_keys("47", 1), "r"]
     expected += ["space", "space", *sim_recall_keys("35", 2), "space"]
     expected += ["space"]  # začátek měření
-    expected += [*sim_recall_keys("093182", 3), sim_effort(1), "space"]
-    expected += [
-        *sim_recall_keys("12", 4),
-        sim_effort(2),
-        "space",
-    ]  # poslední mezerník = konec
+    # hodnocení: nejdřív jiné číslo („1“), pak změna a Enter; po posledním bloku Escape = konec
+    expected += [*sim_recall_keys("093182", 3), "1", sim_effort(1), "return", "space"]
+    expected += [*sim_recall_keys("12", 4), "1", sim_effort(2), "return", "escape"]
     assert rest == expected

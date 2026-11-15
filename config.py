@@ -62,7 +62,9 @@ RECALL_FEEDBACK_DURATION = 2.0  # s, hláška ke správnosti vybavení (jen test
 PRACTICE_REPEAT_KEY = "r"
 PRACTICE_CONTINUE_KEY = "space"
 START_KEY = "space"  # obrazovky „… stiskněte mezerník“ (úvod testovacího kola)
-END_KEY = "space"  # závěrečná obrazovka (zavře experimentátor)
+END_KEY = (
+    "escape"  # závěrečnou obrazovku zavře jen experimentátor (rozhodnuto 15. 11. 2026)
+)
 INSTRUCTION_SCREENS = (
     "instructions_1",
     "instructions_2",
@@ -196,7 +198,8 @@ TEXTS = {
             "Zpětnou vazbu k číslicím už neuvidíte.\n\n"
             "Mezerník = začít"
         ),
-        "effort_hint": "Odpovězte stiskem čísla 1–9.",
+        "effort_hint": "Stiskněte číslo 1–9 (jde změnit), pak Enter.",
+        "effort_selected": "Vybráno: {rating}",
         "end": (
             "Měření je hotové, děkujeme!\n\n"
             "Vaše výsledky:\n"
@@ -268,7 +271,8 @@ TEXTS = {
             "You will no longer see feedback on the digits.\n\n"
             "Space = start"
         ),
-        "effort_hint": "Answer by pressing a number 1–9.",
+        "effort_hint": "Press a number 1–9 (you can change it), then Enter.",
+        "effort_selected": "Selected: {rating}",
         "end": (
             "The session is finished, thank you!\n\n"
             "Your results:\n"

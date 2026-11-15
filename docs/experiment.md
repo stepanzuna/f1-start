@@ -171,14 +171,20 @@ jazyky mají stejné texty). Anglické znění doplněno 13. 11. 2026, překlad 
   effort”), 5 = „ani nízké, ani vysoké“ (“neither low nor high mental effort”),
   9 = „velmi, velmi vysoké úsilí“ (“very, very high mental effort”).
 - Pauza mezi bloky: bez pevné délky, text „Pauza. Až budete připraveni, stiskněte mezerník.“
-  Rozšíření o „Další bude blok X ze 4“ a pokyn pod Paasovou škálou („Odpovězte stiskem
-  čísla 1–9.“) čekají na schválení, viz „Texty ke schválení (krok 9)“.
+  Rozšířeno o „Další bude blok X ze 4“ (schváleno 15. 11. 2026).
+- Rozhodnuto 15. 11. 2026 (krok 9):
+  - Paasova škála: číslo 1–9 se nejdřív jen vybere („Vybráno: 7“), jde změnit jiným číslem
+    a uloží se až Enterem, aby se neuložila číslice stisknutá omylem hned po vybavení.
+  - Závěrečnou obrazovku se zhodnocením zavře jen Escape (experimentátor). Data jsou v tu
+    chvíli už uložená.
+  - Práh anticipace (0,1 s) se v instrukcích nevysvětluje (uživatel nerozhodl, ponechán návrh):
+    znalost prahu by mohla změnit strategii účastníků; hláška „Předčasný start!“ stačí.
   (“Break. When you are ready, press the space bar.”)
 - Vybavení číslic: „Napište číslice a stiskněte Enter.“ (“Type the digits and press Enter.”),
   v testovacím kole „Správně“ / „Správně bylo: 4 7“ (“Correct” / “The correct answer was: 4 7”).
-- Texty instrukcí a dalších obrazovek: viz „Texty ke schválení (krok 9)“ níže.
+- Texty instrukcí a dalších obrazovek: viz „Texty obrazovek (krok 9)“ níže.
 
-### Texty ke schválení (krok 9, 14. 11. 2026)
+### Texty obrazovek (krok 9, schváleno uživatelem 15. 11. 2026)
 
 Všechny texty obrazovek pro účastníka v pořadí, jak se v sezení objeví. Vygenerováno
 z `TEXTS` v `config.py` (program je zobrazuje přesně takto). Proměnné ve složených
@@ -354,11 +360,15 @@ Anglicky:
 
 Česky:
 
-> Odpovězte stiskem čísla 1–9.
+> Stiskněte číslo 1–9 (jde změnit), pak Enter.
+>
+> Vybráno: {rating}
 
 Anglicky:
 
-> Answer by pressing a number 1–9.
+> Press a number 1–9 (you can change it), then Enter.
+>
+> Selected: {rating}
 
 **Závěr se zhodnocením** (`end`)
 

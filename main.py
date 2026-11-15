@@ -16,6 +16,7 @@ from config import (
     DIGITS_HEIGHT,
     DROPPED_FRAME_WARNINGS_MAX,
     END_KEY,
+    ENTER_KEYS,
     EXPECTED_FRAME_RATE,
     FEEDBACK_HEIGHT,
     FEEDBACK_Y,
@@ -492,25 +493,34 @@ def show_instructions(session: Session) -> None:
 
 
 def ask_effort(session: Session) -> int:
-    """Paasova škála po bloku: otázka a popisky, odpověď klávesou 1–9."""
+    """Paasova škála po bloku: číslo 1–9 se vybere (jde změnit), Enter ho potvrdí.
+
+    Potvrzení Enterem (rozhodnuto 15. 11. 2026) brání tomu, aby se jako hodnocení uložila
+    číslice stisknutá omylem hned po vybavení.
+    """
     texts = TEXTS[session.language]
-    set_text(
-        session.message,
+    scale = (
         f"{texts['effort_question']}\n\n{texts['effort_low']}\n{texts['effort_mid']}\n"
-        f"{texts['effort_high']}\n\n{texts['effort_hint']}",
+        f"{texts['effort_high']}\n\n{texts['effort_hint']}"
     )
+    selected: int | None = None
     capture_path = capture_once(session, "effort")
     session.kb.clearEvents()
     while True:
+        shown = "–" if selected is None else str(selected)
+        set_text(
+            session.message,
+            f"{scale}\n\n{texts['effort_selected'].format(rating=shown)}",
+        )
         session.message.draw()
-        if capture_path is not None:
+        if capture_path is not None and selected is not None:
             save_frame(session.win, capture_path)
             capture_path = None
         session.win.flip()
         for key in read_screen_keys(session.win, session.kb):
-            rating = effort_rating(key.code or "")
-            if rating is not None:
-                return rating
+            if key.name in ENTER_KEYS and selected is not None:
+                return selected
+            selected = effort_rating(key.code or "") or selected
 
 
 def run_main(

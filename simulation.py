@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from config import (
     BACKSPACE_KEY,
     DIGITS,
+    EFFORT_DIGITS,
     END_KEY,
     FLAG_HEIGHT,
     FLAG_POS,
@@ -154,7 +155,9 @@ def make_sim_typed_keys(
         for digits in block_digits:
             set_number += 1
             keys += sim_recall_keys(digits, set_number)
-        keys.append(sim_effort(block))
+        # Nejdřív jiné číslo, pak změna na hodnocení bloku a Enter (ověří změnu výběru).
+        other = next(d for d in EFFORT_DIGITS if d != sim_effort(block))
+        keys += [other, sim_effort(block), "return"]
         if block < len(main_digits):
             keys.append(START_KEY)  # pauza mezi bloky
     keys.append(END_KEY)

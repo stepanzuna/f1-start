@@ -176,7 +176,8 @@ Hotovo když: testovací kolo jde zopakovat a v CSV je odlišené od ostré čá
 ## Krok 9: Instrukce a průběh sezení
 
 - [x] texty instrukcí sepsat do `docs/experiment.md` (česky i anglicky, generované z `config.py`)
-- [ ] (ručně) schválit texty („Texty ke schválení (krok 9)“ v `docs/experiment.md`)
+- [x] (ručně) schválit texty (schváleno 15. 11. 2026, „Texty obrazovek (krok 9)“)
+- [x] Paasova škála s potvrzením Enterem, závěr zavře jen Escape (rozhodnutí 15. 11. 2026)
 - [x] úvodní instrukce, Paasova škála po bloku, pauza mezi bloky, závěrečná obrazovka
 - [x] předěl „Teď si vyzkoušíte sadu s číslicemi“ v testovacím kole, začátek měření
 - [x] závěrečné zhodnocení (`session_summary`) po uložení dat, hodnocení úsilí do meta po bloku
