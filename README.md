@@ -81,9 +81,20 @@ Soubory: `config.py` (všechny konstanty a texty), `logic.py` (čistá logika be
 `simulation.py` (režim simulace), `screens.py` (obrazovky s textem), `main.py` (okno, start,
 průběh sezení), `check_data.py` (kontrola dat), `tests/`.
 
-## Pro AI asistenty
+## Pro AI asistenty a další vývojáře
 
-Kontext projektu, architektonická rozhodnutí a pravidla jsou v [CLAUDE.md](CLAUDE.md) a odkazech
-z něj. Část „Jak se mnou pracovat“ popisuje pracovní režim autora; pro samotné spuštění nebo test
-stačí tento README. Nikdy neměňte parametry experimentu (hlídá je `tests/test_rules.py`)
-a nenahrávejte nic ze složky `data/`.
+Pravidla, která v projektu platí (ať pracujete ručně, nebo s AI):
+
+- **Parametry experimentu se nemění** (časy, počty, prahy, poměry). Schválené hodnoty jsou
+  v `docs/experiment.md` (sekce Parametry) a zamyká je `tests/test_rules.py`. Když tento test
+  selže, parametr se změnil bez dohody: neopravujte test, zeptejte se autora.
+- **Nic ze složky `data/` nepatří do gitu** (výsledky účastníků, GDPR).
+- **Vrstvy souborů:** `main` → `screens` → `simulation` → `logic` → `config`. Nižší vrstva
+  neimportuje vyšší; `config.py`, `logic.py` a `simulation.py` neimportují PsychoPy, aby šly
+  testovat bez okna. Hlídá to `tests/test_rules.py`.
+- **Časování výhradně ve snímcích** (`frames()` a smyčka `draw → win.flip()`), nikdy
+  `time.sleep` ani `core.wait`; klávesnice (iohub) se čte v každém snímku a Escape vždy ukončí.
+- **Před každou změnou a po ní:** `uv run pytest`, `uv run ruff check .` a simulace
+  `uv run main.py --sim --short`, výsledek ověřit `uv run check_data.py`.
+- Konstanty a všechny texty pro účastníka (česky i anglicky) jsou v `config.py`.
+  Návrh a zdůvodnění rozhodnutí jsou v `docs/experiment.md` a v logu `docs/roadmap.md`.

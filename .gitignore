@@ -10,3 +10,6 @@ wheels/
 .venv
 data/
 .DS_Store
+
+# Pokyny pro Claude Code (jen lokálně, nenahrává se)
+CLAUDE.md
