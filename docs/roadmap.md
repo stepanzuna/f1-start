@@ -182,7 +182,7 @@ Hotovo když: testovací kolo jde zopakovat a v CSV je odlišené od ostré čá
 - [x] předěl „Teď si vyzkoušíte sadu s číslicemi“ v testovacím kole, začátek měření
 - [x] závěrečné zhodnocení (`session_summary`) po uložení dat, hodnocení úsilí do meta po bloku
 - [x] simulace projde celé sezení, `check_data.py` hlídá hodnocení úsilí
-- [ ] (ručně) zkrácené sezení od nicku po závěr
+- [x] (ručně) zkrácené sezení od nicku po závěr
 
 Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do kódu.
 
@@ -190,6 +190,7 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
 
 - [ ] 2–3 lidé, na Macu i na Windows
 - [ ] kontrola délky sezení, přesnosti číslic (cíl 70–90 %), no-go chybovosti, vypadlých snímků
+- [ ] na Paasově škále jednou změnit výběr (např. 3 → 7) a ověřit v meta, že se uložila změna
 - [ ] data z pilotu se do analýzy nezahrnují
 
 ## Log
@@ -270,3 +271,9 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   znaku), `main()` rozdělená na fáze, `run_set`. Ověřeno simulací s pevným seedem (`--seed=N`,
   jen se simulací): data, meta i obrázky obrazovek shodné pixel po pixelu, plný běh i s Escapem.
   Test pravidel hlídá vrstvy importů a načtení PsychoPy až po ztišení logování.
+- 2026-11-15: krok 9 hotový: instrukce (4 obrazovky), předěl v testovacím kole, začátek měření,
+  Paasova škála po bloku s výběrem a potvrzením Enterem (hodnocení hned do meta), pauza
+  „Další bude blok X ze 4“, závěrečné zhodnocení po uložení dat, zavírá jen Escape. Texty
+  schváleny uživatelem; práh anticipace se v instrukcích nevysvětluje. Simulace celého sezení
+  (96 startů) 14:24 min ostrá část. Ruční testy: blok 1 plného sezení, zkrácené sezení do konce.
+  Změna výběru na škále ověřena se skutečným kódem klávesnice PsychoPy (ruční test nejistý).
