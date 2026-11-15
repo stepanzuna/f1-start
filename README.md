@@ -11,6 +11,27 @@ Napsáno v Pythonu s knihovnou [PsychoPy](https://www.psychopy.org/). Běží na
 - **Stav vývoje a historie rozhodnutí:** [docs/roadmap.md](docs/roadmap.md)
 - **Test na Windows krok za krokem:** [docs/windows.md](docs/windows.md)
 
+## Vyzkoušení (asi 10 minut)
+
+Díky, že to zkoušíte! Stačí zkrácená verze sezení:
+
+1. Nainstalujte podle sekce [Instalace](#instalace) níže.
+2. Displej přepněte na **60 Hz** (MacBook Pro s ProMotion: Nastavení → Monitory → Obnovovací
+   frekvence; Windows: Nastavení → Systém → Obrazovka → Upřesnit). Jinak program skončí s hláškou.
+3. **macOS:** povolte aplikaci Terminál čtení klávesnice: Nastavení → Soukromí a zabezpečení →
+   **Sledování vstupu** (a případně i **Zpřístupnění**) → zapnout Terminál, pak Terminál
+   restartovat. Bez toho program na klávesy nereaguje.
+4. Spusťte `uv run main.py --short`. Nick zadejte jako `test_` + cokoli (ne skutečné jméno),
+   jazyk zvolte klávesou C/E. Projdete instrukce, testovací kolo a 4 krátké bloky (asi 6 minut).
+5. **Escape** kdykoli ukončí program, závěrečnou obrazovku zavírá také Escape.
+
+**Windows zatím nebyl ověřený.** Pokud zkoušíte na Windows, postupujte prosím podle
+[docs/windows.md](docs/windows.md): pomůže to připravit měření i na Windows.
+
+**Zpětná vazba:** chyby a postřehy (co nefungovalo, co bylo nejasné v instrukcích, jak dlouho
+to trvalo) prosím přes [Issues](https://github.com/stepanzuna/f1-start/issues) nebo přímo autorovi.
+Data z vyzkoušení zůstávají jen na vašem počítači ve složce `data/test/`.
+
 ## Instalace
 
 Potřebujete [uv](https://docs.astral.sh/uv/) (správce Pythonu a balíčků) a git. Správnou verzi
