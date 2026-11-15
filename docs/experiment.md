@@ -150,7 +150,7 @@ mezera asi 80 px). Text se nastaví jednou před pauzou, mimo měřený start.
     vždy stejné. `check_data.py` testovací kola přegeneruje a porovná s CSV.
   - V CSV: část 1 má `set_index` 1–4 a `start_in_set` 1 (zápis po každém startu),
     sada části 2 má `set_index` 5 a `start_in_set` 1–3.
-  - Úvodní obrazovka před každým kolem (přidáno 14. 11. 2026 na žádost uživatele, ve zvoleném
+  - Úvodní obrazovka před každým kolem (přidáno 14. 11. 2026 na žádost autora, ve zvoleném
     jazyce): „Testovací kolo. Vyzkoušíte si několik startů a jednu sadu s číslicemi. Výsledky
     testovacího kola se nezapočítávají. Mezerník = začít“ (EN: “Practice round. You will try
     a few starts and one set with digits. The practice round does not count. Space = start”).
@@ -177,14 +177,14 @@ jazyky mají stejné texty). Anglické znění doplněno 13. 11. 2026, překlad 
     a uloží se až Enterem, aby se neuložila číslice stisknutá omylem hned po vybavení.
   - Závěrečnou obrazovku se zhodnocením zavře jen Escape (experimentátor). Data jsou v tu
     chvíli už uložená.
-  - Práh anticipace (0,1 s) se v instrukcích nevysvětluje (uživatel nerozhodl, ponechán návrh):
+  - Práh anticipace (0,1 s) se v instrukcích nevysvětluje (autor nerozhodl, ponechán návrh):
     znalost prahu by mohla změnit strategii účastníků; hláška „Předčasný start!“ stačí.
   (“Break. When you are ready, press the space bar.”)
 - Vybavení číslic: „Napište číslice a stiskněte Enter.“ (“Type the digits and press Enter.”),
   v testovacím kole „Správně“ / „Správně bylo: 4 7“ (“Correct” / “The correct answer was: 4 7”).
 - Texty instrukcí a dalších obrazovek: viz „Texty obrazovek (krok 9)“ níže.
 
-### Texty obrazovek (krok 9, schváleno uživatelem 15. 11. 2026)
+### Texty obrazovek (krok 9, schváleno autorem 15. 11. 2026)
 
 Všechny texty obrazovek pro účastníka v pořadí, jak se v sezení objeví. Vygenerováno
 z `TEXTS` v `config.py` (program je zobrazuje přesně takto). Proměnné ve složených
@@ -467,9 +467,9 @@ Nové otázky se zapisují sem s návrhem; po rozhodnutí se přesunou do přís
 1. No-go v sadě s číslicemi v testovacím kole (část 2: číslice → 3 starty → vybavení):
    *návrh (implementováno):* 1 ze 3 startů je no-go (`PRACTICE_SET_NOGO = 1`), aby si účastník
    vyzkoušel vlajku i pod paměťovou zátěží (v ostré části mají sady no-go taky).
-   Alternativa: 0 (sada jen s go starty). *Potvrzeno uživatelem 14. 11. 2026.*
+   Alternativa: 0 (sada jen s go starty). *Potvrzeno autorem 14. 11. 2026.*
 
-Rozhodnuto 14. 11. 2026 (uživatel):
+Rozhodnuto 14. 11. 2026 (autor):
 - Hláška „Správně“ / „Správně bylo: 4 7“ po vybavení v testovacím kole svítí 2 s
   (`RECALL_FEEDBACK_DURATION`).
 - Prodlevy v testovacím kole náhodně (sada části 2 má 3 různé ze 4, no-go na náhodném místě).

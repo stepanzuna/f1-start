@@ -2,7 +2,7 @@
 
 Pravidla: jeden krok najednou, provádí se podle skillu `/krok`. Po dokončení kroku odškrtnout,
 doplnit řádek do logu dole a commitnout na větev kroku. Každý krok má „Hotovo když“: bez splnění
-se nepokračuje. Položky označené (ručně) ověřuje uživatel, ostatní Claude sám.
+se nepokračuje. Položky označené (ručně) ověřuje autor, ostatní Claude sám.
 
 ## Hotovo
 
@@ -170,7 +170,7 @@ Hotovo když: `uv run pytest` projde a plán sezení má 96 startů ve 4 blocíc
       (bez číslic) se zapisuje po každém startu a nesmí se slít do jedné sady; upravit vzorec
       Escapu v `check_simulation` pro sady různé délky
 - [x] (ručně) testovací kolo, opakování, vypadlý snímek po prvním stisku v testovacím kole
-- [x] úvodní obrazovka testovacího kola (na žádost uživatele), obecná `ask_key`
+- [x] úvodní obrazovka testovacího kola (na žádost autora), obecná `ask_key`
 - [ ] ověřit, že vypadlý snímek po prvním stisku v sezení padne do testovacího kola,
       ne do prvního ostrého startu (`check_data.py` ho hlásí jako varování)
 
@@ -249,7 +249,7 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   přepsání pořadí klávesou A/B (pokryto testem).
 - 2026-11-13: krok 5 hotový: hláška v pauze podle výsledku ve zvoleném jazyce (`feedback_text`),
   nad lampami (y = 60 px, písmo 60 px). Ruční test v češtině (8 startů, 4 typy hlášek) bez
-  vypadlých snímků, uživatel bez připomínek; angličtina ověřena obrázky ze simulace.
+  vypadlých snímků, autor bez připomínek; angličtina ověřena obrázky ze simulace.
 - 2026-11-13: krok 6 hotový: sada = číslice 2 s + 0,5 s prázdno, 3 starty, vybavení (jen číslice,
   česká horní řada i Caps Lock, Backspace, Enter i u kratší odpovědi), zápis CSV po sadě, číslice
   ve slovníku podle (blok, sada). Dočasně do kroku 7 sady se střídající zátěží. Ruční test: 3 celé
@@ -260,7 +260,7 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   8 sad po 3), seed a `short` v meta, `check_data.py` přegeneruje plán a porovná s CSV,
   zkrácený plán `--short` jen pro simulaci a `test…`. Simulace celého sezení 11:41 min.
   Ruční test: zkrácené sezení v pořádku, `--short` s ostrým nickem odmítnut.
-- 2026-11-13: parametr změněn na žádost uživatele po ručním testu: `DIGITS_DURATION` 2 s → 4 s
+- 2026-11-13: parametr změněn na žádost autora po ručním testu: `DIGITS_DURATION` 2 s → 4 s
   pro obě zátěže (6 číslic za 2 s nešlo zapamatovat; stejný čas, aby se podmínky lišily jen
   počtem číslic). Odhad délky ostré části asi 15–16 min.
 - 2026-11-14: krok 8 hotový: testovací kolo (4 starty bez číslic + sada se 2 číslicemi a hláškou
@@ -277,6 +277,6 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
 - 2026-11-15: krok 9 hotový: instrukce (4 obrazovky), předěl v testovacím kole, začátek měření,
   Paasova škála po bloku s výběrem a potvrzením Enterem (hodnocení hned do meta), pauza
   „Další bude blok X ze 4“, závěrečné zhodnocení po uložení dat, zavírá jen Escape. Texty
-  schváleny uživatelem; práh anticipace se v instrukcích nevysvětluje. Simulace celého sezení
+  schváleny autorem; práh anticipace se v instrukcích nevysvětluje. Simulace celého sezení
   (96 startů) 14:24 min ostrá část. Ruční testy: blok 1 plného sezení, zkrácené sezení do konce.
   Změna výběru na škále ověřena se skutečným kódem klávesnice PsychoPy (ruční test nejistý).

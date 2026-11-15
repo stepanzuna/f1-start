@@ -13,3 +13,5 @@ data/
 
 # Pokyny pro Claude Code (jen lokálně, nenahrává se)
 CLAUDE.md
+# Nastavení a nástroje Claude Code (jen lokálně, nenahrává se)
+.claude/
