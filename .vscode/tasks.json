@@ -1,5 +1,6 @@
 {
-  // Cmd+Shift+B: spustí experiment v aplikaci Terminál (okno PsychoPy pak není schované za VS Code).
+  // Cmd+Shift+B (Windows: Ctrl+Shift+B): spustí experiment v novém okně Terminálu / PowerShellu
+  // (okno PsychoPy pak není schované za VS Code).
   "version": "2.0.0",
   "tasks": [
     {
@@ -13,6 +14,10 @@
           "-e",
           "tell application \"Terminal\" to activate"
         ]
+      },
+      "windows": {
+        "command": "cmd",
+        "args": ["/c", "start", "powershell", "-NoExit", "-Command", "cd '${workspaceFolder}'; uv run main.py"]
       },
       "group": { "kind": "build", "isDefault": true },
       "presentation": { "reveal": "silent" },
@@ -30,6 +35,10 @@
           "-e",
           "tell application \"Terminal\" to activate"
         ]
+      },
+      "windows": {
+        "command": "cmd",
+        "args": ["/c", "start", "powershell", "-NoExit", "-Command", "cd '${workspaceFolder}'; uv run main.py --short"]
       },
       "group": "build",
       "presentation": { "reveal": "silent" },

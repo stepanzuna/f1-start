@@ -171,7 +171,7 @@ def check_row(
     if row["phase"] != expected_phase:
         problems.append(f"phase {row['phase']!r} nesedí k block {row['block']}")
     if not row["dropped_frames"].isdigit():
-        problems.append(f"dropped_frames {row['dropped_frames']!r} není celé číslo ≥ 0")
+        problems.append(f"dropped_frames {row['dropped_frames']!r} není celé číslo >= 0")
     try:
         datetime.fromisoformat(row["timestamp"])
     except ValueError:
@@ -383,7 +383,7 @@ def check_plan(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]
         problems.append("ostrá část bez testovacího kola")
     if meta.get("planned_starts") != len(plan):
         problems.append(
-            f"meta: planned_starts {meta.get('planned_starts')} ≠ plán {len(plan)}"
+            f"meta: planned_starts {meta.get('planned_starts')} != plán {len(plan)}"
         )
     nick = str(meta.get("participant", ""))
     if short and not short_plan_allowed(bool(meta.get("simulated")), nick):

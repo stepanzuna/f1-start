@@ -93,8 +93,11 @@ Simulace neověřuje časování, to dál ověřuje ruční test.
 ## Krok 2w: Ověření na Windows (co nejdřív, jakmile bude Windows k dispozici)
 
 Riziko: kdyby se na Windows opakovaly potíže s celou obrazovkou jako na Macu, oprava potřebuje
-čas. Proto hned po kroku 3, ne až před pilotem. Výsledky (meta a log z běhu s nickem `test`,
-bez osobních údajů) zkopírovat do `docs/diag/` a commitnout, Claude je pak přečte.
+čas. Postup krok za krokem je v `docs/windows.md` (15. 11. 2026); výsledky (meta a log z běhu
+s nickem `test_win`, bez osobních údajů) jdou do `docs/diag/`, Claude je pak přečte.
+
+- [x] příprava: úloha VS Code i pro Windows, znaky v `check_data.py` vypsatelné v konzoli Windows,
+      `README.md` (instalace a spuštění na obou systémech), návod `docs/windows.md`
 
 - [ ] (ručně) na Windows nainstalovat uv, `git clone`, `uv sync`, spustit a sepsat, kde a s jakou chybou to selže
 - [ ] zjistit rozlišení, škálování displeje (DPI) a obnovovací frekvenci

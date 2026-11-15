@@ -1,0 +1,89 @@
+# F1 start pod zátěží
+
+Psychologický experiment do předmětu Kognitivní věda (VŠE FIS). Měří, jestli zátěž pracovní
+paměti (zapamatovat si 2 nebo 6 číslic) zhoršuje kontrolu startu v úloze podle startu formule 1:
+reakci na zhasnutí semaforu, předčasné starty a starty pod žlutou vlajkou (no-go).
+
+Napsáno v Pythonu s knihovnou [PsychoPy](https://www.psychopy.org/). Běží na macOS
+(Apple Silicon) i Windows. Účastník vidí texty česky nebo anglicky.
+
+- **Design experimentu, parametry, formát dat:** [docs/experiment.md](docs/experiment.md)
+- **Stav vývoje a historie rozhodnutí:** [docs/roadmap.md](docs/roadmap.md)
+- **Test na Windows krok za krokem:** [docs/windows.md](docs/windows.md)
+
+## Instalace
+
+Potřebujete [uv](https://docs.astral.sh/uv/) (správce Pythonu a balíčků) a git. Správnou verzi
+Pythonu (3.11) i PsychoPy nainstaluje `uv sync` sám, přesně podle `uv.lock`.
+
+**macOS** (Terminál):
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/stepanzuna/f1-start.git
+cd f1-start
+uv sync
+```
+
+**Windows** (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+git clone https://github.com/stepanzuna/f1-start.git
+cd f1-start
+uv sync
+```
+
+Po instalaci uv zavřete a znovu otevřete terminál, aby našel příkaz `uv`.
+
+## Spuštění
+
+```bash
+uv run main.py            # celé sezení (asi 20 minut)
+uv run main.py --short    # zkrácené sezení pro test (nick musí začínat „test“)
+```
+
+- **macOS:** spouštějte z aplikace Terminál (z terminálu VS Code zůstane okno schované a program
+  skončí s hláškou), nebo ve VS Code přes `Cmd+Shift+B`.
+- **Windows:** spouštějte z PowerShellu, nebo ve VS Code přes `Ctrl+Shift+B` (otevře nové okno
+  PowerShellu).
+- Displej musí běžet na **60 Hz** (na MacBooku vypnout ProMotion, na Windows nastavit v Nastavení
+  → Obrazovka → Upřesnit). Jinak program skončí s hláškou.
+- **Escape** kdykoli ukončí program. Už zapsaná data zůstanou, sezení se označí jako přerušené.
+
+Průběh sezení: nick účastníka → pořadí bloků a jazyk → instrukce → testovací kolo (lze opakovat)
+→ 4 bloky po 24 startech, po každém hodnocení úsilí (Paasova škála) a pauza → zhodnocení.
+
+## Data
+
+Každé sezení uloží do složky `data/` tři soubory se jménem `{nick}_{mac|win}_{datum}_{čas}`:
+`.csv` (jeden řádek = jeden start), `_meta.json` (nastavení, seed, hodnocení úsilí, přerušení)
+a `_log.txt` (varování PsychoPy). Sloupce a metadata popisuje [docs/experiment.md](docs/experiment.md).
+
+- Nick začínající `pilot` jde do `data/pilot/`, `test` do `data/test/`. Do analýzy se nepočítají.
+- **Složka `data/` se nikdy nenahrává na GitHub** (GDPR). Je v `.gitignore` a hlídá to i hook.
+- Kontrola dat jednoho sezení: `uv run check_data.py data/<soubor>.csv`
+  (bez argumentu zkontroluje nejnovější sezení).
+
+## Vývoj a ověřování
+
+```bash
+uv run pytest             # testy čisté logiky (bez okna)
+uv run ruff check .       # kontrola stylu
+uv run main.py --sim      # simulace celého sezení bez člověka (malé okno, data/sim/)
+uv run main.py --sim --short --seed=4242   # rychlá a opakovatelná simulace
+```
+
+Simulace „mačká“ klávesy podle scénáře a `check_data.py` pak ověří, že program vyhodnotil
+a uložil přesně to, co scénář předpověděl.
+
+Soubory: `config.py` (všechny konstanty a texty), `logic.py` (čistá logika bez PsychoPy),
+`simulation.py` (režim simulace), `screens.py` (obrazovky s textem), `main.py` (okno, start,
+průběh sezení), `check_data.py` (kontrola dat), `tests/`.
+
+## Pro AI asistenty
+
+Kontext projektu, architektonická rozhodnutí a pravidla jsou v [CLAUDE.md](CLAUDE.md) a odkazech
+z něj. Část „Jak se mnou pracovat“ popisuje pracovní režim autora; pro samotné spuštění nebo test
+stačí tento README. Nikdy neměňte parametry experimentu (hlídá je `tests/test_rules.py`)
+a nenahrávejte nic ze složky `data/`.
