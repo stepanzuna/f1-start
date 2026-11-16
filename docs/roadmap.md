@@ -126,7 +126,8 @@ převod velikostí na cm, kalibrace, anonymní identifikátor počítače).
       `machine_id`, `px_per_cm`, `calibrated_at` v meta, kontrola v `check_data.py`
 - [x] simulace s pevnými 50 px/cm projde K (tam a zpět) i V; obrázky obrazovek stejné
       pixel po pixelu jako před krokem
-- [ ] (ručně) Mac: první kalibrace kartou, `V` a pravítko na vlajku
+- [x] (ručně) Mac: první kalibrace kartou (50,35 px/cm), `V` a pravítko na vlajku: sedí
+      10 × 6 cm; kalibrace zůstala uložená, testovací kolo bez vypadlých snímků
 - [ ] (ručně) Windows: viz retest v kroku 2w
 
 Hotovo když: vlajka změřená pravítkem má na Macu i na Windows 10 × 6 cm (± 2 mm) a simulace
@@ -315,3 +316,8 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   0,8 cm), na Macu je vzhled stejný jako před krokem. Zalamování textu podle viditelné šířky
   okna (dřív na Retině 160 % obrazovky), odhad první kalibrace z viditelné výšky. Dřívější
   údaj „na Windows 2,2× větší“ byl chybný, skutečný rozdíl byl asi 10 %.
+- 2026-11-16: ruční test kroku 2k na Macu: vlajka změřená pravítkem 10 × 6 cm (kalibrace
+  50,35 px/cm), velikost textů a semaforu stejná jako před krokem, kalibrace se při dalším
+  spuštění neptá. Klávesy V a K na obrazovce nastavení nejsou moc nápadné (autor je napoprvé
+  nenašel); `Cmd+Shift+B` spouští celé sezení, zkrácený test je přes Tasks: Run Task.
+  Zbývá retest na Windows (po sloučení do `main`).
