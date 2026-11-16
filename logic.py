@@ -3,6 +3,7 @@
 import itertools
 import json
 import random
+import secrets
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -11,10 +12,20 @@ from pathlib import Path
 
 from config import (
     ANTICIPATION_THRESHOLD,
+    ASSUMED_SCREEN_HEIGHT_CM,
     BACKSPACE_KEY,
     BLOCK_LOADS,
     BLOCK_ORDER_KEYS,
     BLOCK_ORDERS,
+    CALIBRATION_ADJUST_FIRST,
+    CALIBRATION_INVALID,
+    CALIBRATION_KEYS,
+    CALIBRATION_NOTE,
+    CALIBRATION_NOTE_SIM,
+    CALIBRATION_SCREEN,
+    CALIBRATION_VALUE,
+    CARD_HEIGHT_CM,
+    CARD_WIDTH_CM,
     CZECH_DIGIT_ROW,
     DIGITS,
     DIGITS_BLANK,
@@ -23,14 +34,23 @@ from config import (
     EFFORT_DIGITS,
     ENTER_KEYS,
     FEEDBACK_KEYS,
+    FLAG_HEIGHT,
+    FLAG_WIDTH,
+    FOLDER_NOTE,
     FOREPERIODS,
     GO_PER_FOREPERIOD,
+    LAMP_RADIUS,
+    LAMP_SPACING,
     LANGUAGE_KEYS,
+    LANGUAGE_NAMES,
     LIGHT_INTERVAL,
     MACHINE_CODES,
+    MACHINE_ID_BYTES,
+    MACHINE_ID_CHARS,
     MAX_NOGO_RUN,
     MAX_SHUFFLES,
     META_SUFFIX,
+    MM_PER_CM,
     NICK_CHARS,
     NICK_EXISTS,
     NICK_INVALID,
@@ -44,17 +64,24 @@ from config import (
     PRACTICE_LOAD,
     PRACTICE_SET_NOGO,
     PRACTICE_SINGLE_NOGO,
+    PX_PER_CM_DECIMALS,
+    PX_PER_CM_MAX,
+    PX_PER_CM_MIN,
     RECALL_FEEDBACK_DURATION,
     RESPONSE_WINDOW,
     REST_INTERVAL,
     SEED_FLAG,
     SEED_MAX,
+    SETTINGS_ACTIONS,
+    SETTINGS_SCREEN,
+    SETTINGS_START,
     SHORT_FLAG,
     SHORT_SETS_PER_BLOCK,
     SIM_DIR_NAME,
     SIM_ESCAPE_AT,
     SIM_ESCAPE_FLAG,
     SIM_FLAG,
+    SIZE_CHECK_SCREEN,
     STARTS_PER_SET,
     TEST_PREFIX,
     TEXTS,
@@ -400,6 +427,26 @@ def git_commit(repo_dir: Path) -> str:
     return f"{head}-dirty" if changes else head
 
 
+@dataclass(frozen=True)
+class Calibration:
+    """Kalibrace velikosti: pixely na centimetr pro danou velikost okna.
+
+    calibrated_at je čas kalibrace (ISO 8601), None = pevná hodnota simulace.
+    """
+
+    px_per_cm: float
+    window_size: tuple[int, int]
+    calibrated_at: str | None
+
+
+@dataclass(frozen=True)
+class MachineInfo:
+    """Údaje o tomto počítači (data/machine.json): anonymní identifikátor a kalibrace."""
+
+    machine_id: str
+    calibration: Calibration | None = None
+
+
 def make_meta(
     participant: str,
     machine: str,
@@ -415,11 +462,18 @@ def make_meta(
     seed: int,
     short: bool,
     simulated: bool,
+    machine_id: str,
+    calibration: Calibration,
+    dpi_aware: bool | None,
 ) -> dict[str, object]:
-    """Sestaví metadata sezení; dokud sezení řádně neskončí, je označené jako přerušené."""
+    """Sestaví metadata sezení; dokud sezení řádně neskončí, je označené jako přerušené.
+
+    dpi_aware: jestli program na Windows vypnul roztažení obrazu podle měřítka (mimo Windows None).
+    """
     return {
         "participant": participant,
         "machine": machine,
+        "machine_id": machine_id,
         **environment,
         "started_at": started_at.isoformat(timespec="seconds"),
         "ended_at": None,
@@ -435,6 +489,9 @@ def make_meta(
         "frame_rate_hz": round(frame_rate, 3),
         "window_mode": window_mode,
         "window_size_px": list(window_size),
+        "px_per_cm": calibration.px_per_cm,
+        "calibrated_at": calibration.calibrated_at,
+        "dpi_aware": dpi_aware,
         "keyboard_backend": keyboard_backend,
         "timing_s": {
             "LIGHT_INTERVAL": LIGHT_INTERVAL,
@@ -467,13 +524,206 @@ def finish_meta(
     }
 
 
-def write_meta(path: Path, meta: dict[str, object]) -> None:
-    """Uloží metadata do JSON přes dočasný soubor, aby pád nenechal soubor napůl zapsaný."""
+def write_json(path: Path, data: dict[str, object]) -> None:
+    """Uloží JSON (meta, počítač) přes dočasný soubor, aby pád nenechal půlku souboru."""
     temporary = path.with_name(path.name + ".tmp")
     temporary.write_text(
-        json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     temporary.replace(path)
+
+
+def px_per_cm_from_card(width_px: int) -> float:
+    """Pixely na centimetr z šířky obdélníku srovnaného s kartou."""
+    return round(width_px / CARD_WIDTH_CM, PX_PER_CM_DECIMALS)
+
+
+def card_width_px(px_per_cm: float) -> int:
+    """Šířka obdélníku karty v pixelech (výchozí bod kalibrace)."""
+    return round(px_per_cm * CARD_WIDTH_CM)
+
+
+def card_height_px(width_px: int) -> float:
+    """Výška obdélníku karty v pixelech, v poměru stran karty."""
+    return width_px * CARD_HEIGHT_CM / CARD_WIDTH_CM
+
+
+def adjust_card_width(width_px: int, name: str) -> int:
+    """Šipka změní šířku obdélníku (CALIBRATION_KEYS), jiná klávesa nic; nejméně 1 px."""
+    return max(1, width_px + CALIBRATION_KEYS.get(name, 0))
+
+
+def is_plausible_px_per_cm(px_per_cm: object) -> bool:
+    """Je hodnota kalibrace věrohodná (číslo v rozsahu PX_PER_CM_MIN až PX_PER_CM_MAX)?"""
+    is_number = isinstance(px_per_cm, int | float) and not isinstance(px_per_cm, bool)
+    return is_number and PX_PER_CM_MIN <= px_per_cm <= PX_PER_CM_MAX
+
+
+def provisional_px_per_cm(window_height: int) -> float:
+    """Odhad pixelů na centimetr před první kalibrací (z obvyklé výšky displeje notebooku)."""
+    return window_height / ASSUMED_SCREEN_HEIGHT_CM
+
+
+def decimal_text(value: float) -> str:
+    """Číslo na jedno desetinné místo s desetinnou čárkou (texty pro experimentátora)."""
+    return f"{value:.1f}".replace(".", ",")
+
+
+def calibration_screen_text() -> str:
+    """Návod na kalibrační obrazovce s rozměry karty v mm."""
+    return CALIBRATION_SCREEN.format(
+        card_width=decimal_text(CARD_WIDTH_CM * MM_PER_CM),
+        card_height=decimal_text(CARD_HEIGHT_CM * MM_PER_CM),
+    )
+
+
+def calibration_accepts_enter(width_px: int, adjusted: bool) -> bool:
+    """Enter uloží kalibraci jen po úpravě šipkami a s věrohodnou hodnotou.
+
+    Bez úpravy by šlo omylem potvrdit neměřený odhad (např. Enterem po psaní nicku).
+    """
+    return adjusted and is_plausible_px_per_cm(px_per_cm_from_card(width_px))
+
+
+def calibration_value_text(width_px: int, adjusted: bool) -> str:
+    """Řádek pod obdélníkem: šířka a pixely na centimetr, případně proč Enter nejde."""
+    px_per_cm = px_per_cm_from_card(width_px)
+    lines = [
+        CALIBRATION_VALUE.format(width=width_px, px_per_cm=decimal_text(px_per_cm))
+    ]
+    if not is_plausible_px_per_cm(px_per_cm):
+        lines.append(
+            CALIBRATION_INVALID.format(
+                minimum=round(PX_PER_CM_MIN), maximum=round(PX_PER_CM_MAX)
+            )
+        )
+    if not adjusted:
+        lines.append(CALIBRATION_ADJUST_FIRST)
+    return "\n".join(lines)
+
+
+def recalibrated(
+    previous: Calibration | None,
+    px_per_cm: float,
+    window_size: tuple[int, int],
+    calibrated_at: str,
+) -> Calibration:
+    """Výsledek kalibrace; beze změny hodnoty zůstane dosavadní kalibrace i s datem.
+
+    Datum tak říká, kdy byla hodnota naměřena (simulace po K a Enteru zůstane bez data).
+    """
+    unchanged = (
+        previous is not None
+        and previous.px_per_cm == px_per_cm
+        and previous.window_size == window_size
+    )
+    if unchanged:
+        return previous
+    return Calibration(px_per_cm, window_size, calibrated_at)
+
+
+def calibration_note(calibration: Calibration) -> str:
+    """Popis kalibrace na obrazovce nastavení (hodnota a datum, u simulace bez data)."""
+    px_per_cm = decimal_text(calibration.px_per_cm)
+    if calibration.calibrated_at is None:
+        return CALIBRATION_NOTE_SIM.format(px_per_cm=px_per_cm)
+    calibrated = datetime.fromisoformat(calibration.calibrated_at)
+    date = f"{calibrated.day}. {calibrated.month}. {calibrated.year}"
+    return CALIBRATION_NOTE.format(px_per_cm=px_per_cm, date=date)
+
+
+def size_check_text() -> str:
+    """Text obrazovky ověření velikosti: rozměry vlajky a lamp v cm."""
+    return SIZE_CHECK_SCREEN.format(
+        flag_width=decimal_text(FLAG_WIDTH),
+        flag_height=decimal_text(FLAG_HEIGHT),
+        lamp_diameter=decimal_text(2 * LAMP_RADIUS),
+        lamp_spacing=decimal_text(LAMP_SPACING),
+    )
+
+
+def new_machine_id() -> str:
+    """Nový anonymní identifikátor počítače (náhodný, nic o počítači neprozrazuje)."""
+    return secrets.token_hex(MACHINE_ID_BYTES)
+
+
+def is_valid_machine_id(machine_id: object) -> bool:
+    """Má identifikátor počítače správný tvar (2 × MACHINE_ID_BYTES šestnáctkových znaků)?"""
+    return (
+        isinstance(machine_id, str)
+        and len(machine_id) == 2 * MACHINE_ID_BYTES
+        and all(char in MACHINE_ID_CHARS for char in machine_id)
+    )
+
+
+def is_valid_timestamp(text: object) -> bool:
+    """Je to čas ve formátu ISO 8601 (jak ho zapisuje program)?"""
+    if not isinstance(text, str):
+        return False
+    try:
+        datetime.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
+def parse_calibration(data: object) -> Calibration | None:
+    """Kalibrace ze souboru počítače; neúplná nebo nevěrohodná = žádná."""
+    if not isinstance(data, dict):
+        return None
+    size = data.get("window_size_px")
+    calibrated_at = data.get("calibrated_at")
+    if (
+        not is_plausible_px_per_cm(data.get("px_per_cm"))
+        or not isinstance(size, list)
+        or len(size) != 2
+        or not all(isinstance(side, int) for side in size)
+        or not is_valid_timestamp(calibrated_at)
+    ):
+        return None
+    return Calibration(float(data["px_per_cm"]), (size[0], size[1]), calibrated_at)
+
+
+def load_machine_info(path: Path) -> MachineInfo:
+    """Načte údaje o počítači; když soubor chybí nebo je poškozený, vytvoří nový identifikátor.
+
+    Nový identifikátor se uloží až se sezením (save_machine_info po obrazovce nastavení).
+    """
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return MachineInfo(new_machine_id())
+    if not isinstance(data, dict) or not is_valid_machine_id(data.get("machine_id")):
+        return MachineInfo(new_machine_id())
+    return MachineInfo(data["machine_id"], parse_calibration(data.get("calibration")))
+
+
+def save_machine_info(path: Path, info: MachineInfo) -> None:
+    """Uloží identifikátor počítače a kalibraci do data/machine.json."""
+    calibration = info.calibration
+    write_json(
+        path,
+        {
+            "machine_id": info.machine_id,
+            "calibration": None
+            if calibration is None
+            else {
+                "px_per_cm": calibration.px_per_cm,
+                "window_size_px": list(calibration.window_size),
+                "calibrated_at": calibration.calibrated_at,
+            },
+        },
+    )
+
+
+def calibration_for_window(
+    info: MachineInfo, window_size: tuple[int, int]
+) -> Calibration | None:
+    """Uložená kalibrace, jen když platí pro tuto velikost okna (jinak je potřeba nová)."""
+    calibration = info.calibration
+    if calibration is None or calibration.window_size != window_size:
+        return None
+    return calibration
 
 
 @dataclass(frozen=True)
@@ -642,6 +892,43 @@ def count_completed_sessions(data_dir: Path, machine: str) -> int:
 def assign_block_order(completed_sessions: int) -> str:
     """Střídání pořadí bloků na tomto počítači: sudý počet → ABBA, lichý → BAAB."""
     return BLOCK_ORDERS[completed_sessions % len(BLOCK_ORDERS)]
+
+
+@dataclass(frozen=True)
+class SettingsInfo:
+    """Co obrazovka nastavení jen ukazuje: účastník, počítač, cílová složka, kalibrace.
+
+    folder je klíč FOLDER_NOTE ("" = ostrá data), completed počet dokončených sezení.
+    """
+
+    nick: str
+    machine: str
+    machine_id: str
+    folder: str
+    completed: int
+    calibration: Calibration
+
+
+def settings_text(info: SettingsInfo, block_order: str, language: str) -> str:
+    """Text obrazovky nastavení pro zvolené pořadí bloků a jazyk."""
+    auto_order = assign_block_order(info.completed)
+    return SETTINGS_SCREEN.format(
+        nick=info.nick,
+        machine=info.machine,
+        machine_id=info.machine_id,
+        folder=FOLDER_NOTE[info.folder],
+        block_order=block_order,
+        order_note=settings_order_note(block_order, auto_order, info.completed),
+        language_name=LANGUAGE_NAMES[language],
+        calibration=calibration_note(info.calibration),
+    )
+
+
+def settings_action(name: str) -> str | None:
+    """Klávesa, která obrazovku nastavení opustí: Enter = začít, K = kalibrace, V = ověření."""
+    if name in ENTER_KEYS:
+        return SETTINGS_START
+    return SETTINGS_ACTIONS.get(name)
 
 
 def settings_order_note(block_order: str, auto_order: str, completed: int) -> str:

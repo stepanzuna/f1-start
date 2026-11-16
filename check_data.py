@@ -33,11 +33,15 @@ from config import (
     OUTCOMES_WITH_RT,
     PILOT_PREFIX,
     PRACTICE_BLOCK,
+    PX_PER_CM_MAX,
+    PX_PER_CM_MIN,
     RESPONSE_WINDOW,
     SIM_DIR_NAME,
     SIM_LANGUAGE,
+    SIM_MACHINE_ID,
     SIM_NICK,
     SIM_PRESS_RT,
+    SIM_PX_PER_CM,
     STARTS_PER_SET,
     TEST_PREFIX,
     WINDOW_MODES,
@@ -47,7 +51,10 @@ from logic import (
     build_practice,
     build_session,
     companion_path,
+    is_plausible_px_per_cm,
+    is_valid_machine_id,
     is_valid_nick,
+    is_valid_timestamp,
     session_data_dir,
     short_plan_allowed,
 )
@@ -62,6 +69,7 @@ from simulation import (
 REQUIRED_META_KEYS = (
     "participant",
     "machine",
+    "machine_id",
     "platform",
     "python_version",
     "psychopy_version",
@@ -79,6 +87,9 @@ REQUIRED_META_KEYS = (
     "frame_rate_hz",
     "window_mode",
     "window_size_px",
+    "px_per_cm",
+    "calibrated_at",
+    "dpi_aware",
     "keyboard_backend",
     "timing_s",
     "dropped_frames_total",
@@ -171,13 +182,43 @@ def check_row(
     if row["phase"] != expected_phase:
         problems.append(f"phase {row['phase']!r} nesedí k block {row['block']}")
     if not row["dropped_frames"].isdigit():
-        problems.append(f"dropped_frames {row['dropped_frames']!r} není celé číslo >= 0")
+        problems.append(
+            f"dropped_frames {row['dropped_frames']!r} není celé číslo >= 0"
+        )
     try:
         datetime.fromisoformat(row["timestamp"])
     except ValueError:
         problems.append(f"timestamp {row['timestamp']!r} není ISO 8601")
     # set_index a start_in_set jsou do kroku 7 zástupně 0, kontrolu doplní krok 7.
     return [f"řádek {expected_index}: {problem}" for problem in problems]
+
+
+def check_calibration(meta: dict[str, object]) -> list[str]:
+    """Ověří kalibraci velikosti a identifikátor počítače (simulace má pevné hodnoty)."""
+    problems = []
+    px_per_cm = meta["px_per_cm"]
+    if not is_plausible_px_per_cm(px_per_cm):
+        problems.append(
+            f"meta: px_per_cm {px_per_cm!r} mimo věrohodný rozsah "
+            f"{PX_PER_CM_MIN}–{PX_PER_CM_MAX}"
+        )
+    if not is_valid_machine_id(meta["machine_id"]):
+        problems.append(
+            f"meta: identifikátor počítače {meta['machine_id']!r} je neplatný"
+        )
+    if meta.get("simulated"):
+        simulated = (px_per_cm, meta["machine_id"], meta["calibrated_at"])
+        if simulated != (SIM_PX_PER_CM, SIM_MACHINE_ID, None):
+            problems.append(
+                f"simulace má mít px_per_cm {SIM_PX_PER_CM}, počítač {SIM_MACHINE_ID} "
+                "a žádné datum kalibrace (nekalibruje)"
+            )
+        return problems
+    if not is_valid_timestamp(meta["calibrated_at"]):
+        problems.append("ostré sezení nemá platné datum kalibrace (calibrated_at)")
+    if meta["machine_id"] == SIM_MACHINE_ID:
+        problems.append("ostré sezení má identifikátor počítače simulace")
+    return problems
 
 
 def check_meta(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]:
@@ -187,6 +228,7 @@ def check_meta(meta: dict[str, object], rows: list[dict[str, str]]) -> list[str]
     ]
     if problems:
         return problems
+    problems = check_calibration(meta)
     planned = meta["planned_starts"]
     rows = [row for row in rows if row["block"] != str(PRACTICE_BLOCK)]
     if meta["aborted"]:
@@ -497,6 +539,20 @@ def check_digits(rows: list[dict[str, str]], simulated: bool) -> list[str]:
     return problems
 
 
+def meta_warnings(meta: dict[str, object]) -> list[str]:
+    """Varování z meta: Windows bez DPI awareness (obraz roztažený, snímky vypadávají častěji)."""
+    if (
+        meta.get("machine") == MACHINE_CODES["win32"]
+        and meta.get("dpi_aware") is not True
+    ):
+        warning = (
+            "Windows bez DPI awareness: obraz byl roztažený podle měřítka zobrazení "
+            "(velikost podnětů drží kalibrace, ale snímky mohou vypadávat častěji)"
+        )
+        return [warning]
+    return []
+
+
 def dropped_frame_warnings(rows: list[dict[str, str]]) -> list[str]:
     """Varování pro starty s vypadlými snímky (časování mohlo být nepřesné)."""
     return [
@@ -518,13 +574,17 @@ def summarize(meta: dict[str, object], rows: list[dict[str, str]]) -> str:
     ]
     mean_go = f"{sum(go_rts) / len(go_rts):.1f} ms" if go_rts else "–"
     session = (
-        f"sezení: {meta.get('participant')} / {meta.get('machine')}, "
+        f"sezení: {meta.get('participant')} / {meta.get('machine')} "
+        f"({meta.get('machine_id')}), "
         f"aborted={meta.get('aborted')}, simulated={meta.get('simulated')}, "
         f"commit {meta.get('git_commit')}, klávesnice {meta.get('keyboard_backend')}"
     )
+    dpi = "" if meta.get("dpi_aware") is None else f", DPI aware {meta['dpi_aware']}"
     window = (
         f"okno: {meta.get('window_mode')} {meta.get('window_size_px')}, "
-        f"frekvence {meta.get('frame_rate_hz')} Hz"
+        f"frekvence {meta.get('frame_rate_hz')} Hz{dpi}, "
+        f"velikost {meta.get('px_per_cm')} px/cm "
+        f"(kalibrace {meta.get('calibrated_at') or 'žádná, simulace'})"
     )
     starts = (
         f"testovací kola: {meta.get('practice_rounds')} ({n_practice} startů), "
@@ -567,7 +627,8 @@ def check_session(csv_path: Path) -> tuple[str, list[str], list[str]]:
     problems.extend(check_plan(meta, rows))
     problems.extend(check_sets(rows))
     problems.extend(check_effort(meta, rows))
-    return summarize(meta, rows), problems, dropped_frame_warnings(rows)
+    warnings = meta_warnings(meta) + dropped_frame_warnings(rows)
+    return summarize(meta, rows), problems, warnings
 
 
 def latest_csv(data_dir: Path) -> Path:

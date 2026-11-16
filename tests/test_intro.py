@@ -11,15 +11,21 @@ from config import (
     LANGUAGES,
     NICK_CHARS,
     NICK_MAX_LENGTH,
+    SETTINGS_CALIBRATE,
+    SETTINGS_CHECK_SIZE,
+    SETTINGS_START,
     SIM_INTRO_KEYS,
     SIM_LANGUAGE,
     SIM_NICK,
+    SIM_PX_PER_CM,
     TEXTS,
 )
 from logic import (
     NickInput,
+    adjust_card_width,
     apply_settings_key,
     assign_block_order,
+    card_width_px,
     count_completed_sessions,
     edit_text,
     genuine_presses,
@@ -27,6 +33,8 @@ from logic import (
     nick_exists,
     nick_from_filename,
     nick_input_key,
+    px_per_cm_from_card,
+    settings_action,
     settings_order_note,
 )
 from simulation import (
@@ -200,22 +208,39 @@ def test_texts_have_same_keys_in_all_languages() -> None:
             }
 
 
+def read_key(kb: SimulatedKeyboard) -> str:
+    """Další klávesa, kterou simulace napíše (na obrazovce s textem jedna za snímek)."""
+    keys = kb.getKeys(waitRelease=False)
+    assert len(keys) == 1
+    return keys[0].name
+
+
 def test_simulated_intro_typing() -> None:
-    """Klávesy simulace projdou obrazovkou s nickem a nastavení: nick sim, jazyk EN."""
+    """Klávesy simulace projdou nickem a nastavením: kalibrace, ověření velikosti, jazyk EN.
+
+    Kalibrace začne na SIM_PX_PER_CM a šipky tam a zpět ji vrátí na stejnou hodnotu.
+    """
     kb = SimulatedKeyboard([], 60.0, list(SIM_INTRO_KEYS))
     state = NickInput()
     while not state.done:
         for key in kb.getKeys(waitRelease=False):
             state = nick_input_key(state, key.name, key.code, never_exists)
     block_order, language = "ABBA", "cs"
-    while True:
-        keys = kb.getKeys(waitRelease=False)
-        if any(key.name in ENTER_KEYS for key in keys):
-            break
-        for key in keys:
-            block_order, language = apply_settings_key(key.name, block_order, language)
+    width = card_width_px(SIM_PX_PER_CM)
+    actions = []
+    while (action := settings_action(name := read_key(kb))) != SETTINGS_START:
+        actions.append(action)
+        if action == SETTINGS_CALIBRATE:
+            while (key := read_key(kb)) not in ENTER_KEYS:
+                width = adjust_card_width(width, key)
+        elif action == SETTINGS_CHECK_SIZE:
+            assert read_key(kb) in ENTER_KEYS
+        else:
+            block_order, language = apply_settings_key(name, block_order, language)
     assert state.text == SIM_NICK
     assert language == SIM_LANGUAGE
+    assert {SETTINGS_CALIBRATE, SETTINGS_CHECK_SIZE} <= set(actions)
+    assert px_per_cm_from_card(width) == SIM_PX_PER_CM
     assert kb.getKeys(waitRelease=False) == []
 
 

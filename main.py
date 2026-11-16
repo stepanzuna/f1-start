@@ -2,7 +2,7 @@ import csv
 import os
 import platform
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import TextIO
@@ -13,6 +13,7 @@ from psychopy import logging
 from config import (
     CSV_COLUMNS,
     DATA_DIR_NAME,
+    DEFAULT_LANGUAGE,
     DIGITS_HEIGHT,
     DROPPED_FRAME_WARNINGS_MAX,
     END_KEY,
@@ -33,6 +34,7 @@ from config import (
     LAMP_Y,
     LIGHT_INTERVAL,
     LOG_SUFFIX,
+    MACHINE_FILE_NAME,
     META_SUFFIX,
     N_LAMPS,
     OFF,
@@ -43,20 +45,28 @@ from config import (
     RECALL_FEEDBACK_DURATION,
     RESPONSE_WINDOW,
     REST_INTERVAL,
+    SETTINGS_CALIBRATE,
+    SETTINGS_START,
     SIM_SCREENS_SUFFIX,
     SIM_WINDOW_MODE,
+    SIZE_CHECK_TEXT_Y,
     START_KEY,
     TEST_PREFIX,
     TEXTS,
     WINDOW_MODE,
     WINDOW_MODES,
+    WINDOWS_DPI_AWARENESS,
 )
 from logic import (
+    Calibration,
+    MachineInfo,
     RunOptions,
+    SettingsInfo,
     Start,
     assign_block_order,
     build_practice,
     build_session,
+    calibration_for_window,
     classify_press,
     companion_path,
     count_completed_sessions,
@@ -65,6 +75,7 @@ from logic import (
     finish_meta,
     git_commit,
     group_sets,
+    load_machine_info,
     machine_code,
     make_data_path,
     make_meta,
@@ -73,22 +84,48 @@ from logic import (
     nick_exists,
     outcome_without_press,
     parse_args,
+    provisional_px_per_cm,
+    recalibrated,
     recall_feedback_text,
+    save_machine_info,
     session_data_dir,
     session_summary,
     short_plan_allowed,
+    size_check_text,
     split_blocks,
-    write_meta,
+    write_json,
 )
 from simulation import (
     SimulatedKeyboard,
     make_sim_scenario,
     make_sim_typed_keys,
+    sim_machine_info,
     sim_sequence,
     sim_window_size,
 )
 
+
+def enable_dpi_awareness() -> bool | None:
+    """Windows: okno v nativních pixelech displeje, bez roztažení podle měřítka (125 % apod.).
+
+    Musí proběhnout před prvním oknem: PsychoPy ho vytvoří (skryté okno pygletu) už
+    při importu psychopy.visual, proto se volá na úrovni modulu před tímto importem.
+    Vrátí, jestli je proces DPI aware (do meta); mimo Windows None.
+    """
+    if sys.platform != "win32":
+        return None
+    import ctypes
+
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(WINDOWS_DPI_AWARENESS)
+    except (AttributeError, OSError):
+        ctypes.windll.user32.SetProcessDPIAware()  # starší Windows bez shcore
+    return bool(ctypes.windll.user32.IsProcessDPIAware())
+
+
 logging.console.setLevel(logging.ERROR)
+# Spočítá se jednou při startu (před importem visual níže), dál se jen čte jako konstanta.
+DPI_AWARE = enable_dpi_awareness()
 
 import pyglet  # noqa: E402
 from psychopy import core, visual  # noqa: E402
@@ -96,6 +133,7 @@ from psychopy.hardware import keyboard  # noqa: E402
 
 from screens import (  # noqa: E402
     AnyKeyboard,
+    ask_calibration,
     ask_nick,
     ask_recall,
     ask_settings,
@@ -110,14 +148,18 @@ from screens import (  # noqa: E402
 )
 
 
-def make_lamps(win: visual.Window) -> list[visual.Circle]:
-    """Vytvoří zhasnuté lampy vedle sebe, souměrně kolem středu."""
+def make_lamps(win: visual.Window, px_per_cm: float) -> list[visual.Circle]:
+    """Vytvoří zhasnuté lampy vedle sebe, souměrně kolem středu (rozměry z cm na pixely)."""
     lamps = []
     for i in range(N_LAMPS):
-        x = (i - (N_LAMPS - 1) / 2) * LAMP_SPACING
+        x = (i - (N_LAMPS - 1) / 2) * LAMP_SPACING * px_per_cm
         lamps.append(
             visual.Circle(
-                win, radius=LAMP_RADIUS, pos=(x, LAMP_Y), fillColor=OFF, lineColor=None
+                win,
+                radius=LAMP_RADIUS * px_per_cm,
+                pos=(x, LAMP_Y * px_per_cm),
+                fillColor=OFF,
+                lineColor=None,
             )
         )
     return lamps
@@ -130,13 +172,13 @@ def draw_lamps(lamps: list[visual.Circle], n_on: int) -> None:
         lamp.draw()
 
 
-def make_flag(win: visual.Window) -> visual.Rect:
-    """Vytvoří obdélníkovou vlajku nad semaforem."""
+def make_flag(win: visual.Window, px_per_cm: float) -> visual.Rect:
+    """Vytvoří obdélníkovou vlajku nad semaforem (rozměry z cm na pixely)."""
     return visual.Rect(
         win,
-        width=FLAG_WIDTH,
-        height=FLAG_HEIGHT,
-        pos=FLAG_POS,
+        width=FLAG_WIDTH * px_per_cm,
+        height=FLAG_HEIGHT * px_per_cm,
+        pos=(FLAG_POS[0] * px_per_cm, FLAG_POS[1] * px_per_cm),
         fillColor=FLAG_COLOR,
         lineColor=None,
     )
@@ -542,7 +584,7 @@ def run_main(
         ratings.append(ask_effort(session))
         print(f"blok {number}: hodnocení úsilí {ratings[-1]}", flush=True)
         meta = {**meta, "effort_ratings": list(ratings)}
-        write_meta(meta_path, meta)
+        write_json(meta_path, meta)
         if number < len(blocks):
             ask_key(
                 session,
@@ -618,6 +660,57 @@ class Participant:
     data_dir: Path
     block_order: str
     language: str
+    calibration: Calibration
+
+
+def calibrate(
+    win: visual.Window,
+    kb: AnyKeyboard,
+    window_size: tuple[int, int],
+    previous: Calibration | None,
+) -> Calibration:
+    """Kalibrační obrazovka pro tuto velikost okna.
+
+    Začíná na dosavadní kalibraci, bez ní na odhadu z výšky okna. Beze změny hodnoty
+    zůstane dosavadní kalibrace i s datem (recalibrated).
+    """
+    if previous is None:
+        start = provisional_px_per_cm(window_size[1])
+    else:
+        start = previous.px_per_cm
+    measured = ask_calibration(win, kb, start)
+    calibrated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    print(f"kalibrace: {measured} px/cm", flush=True)
+    return recalibrated(previous, measured, window_size, calibrated_at)
+
+
+def ensure_calibration(
+    win: visual.Window,
+    kb: AnyKeyboard,
+    machine_info: MachineInfo,
+    window_size: tuple[int, int],
+) -> Calibration:
+    """Uložená kalibrace pro tuto velikost okna, jinak kalibrační obrazovka hned (před nickem)."""
+    calibration = calibration_for_window(machine_info, window_size)
+    if calibration is not None:
+        return calibration
+    return calibrate(win, kb, window_size, None)
+
+
+def show_size_check(win: visual.Window, kb: AnyKeyboard, px_per_cm: float) -> None:
+    """Vlajka a rozsvícené lampy v kalibrované velikosti k ověření pravítkem; Enter = zpět."""
+    lamps = make_lamps(win, px_per_cm)
+    flag = make_flag(win, px_per_cm)
+    text = make_text(win, px_per_cm, SIZE_CHECK_TEXT_Y)
+    set_text(text, size_check_text())
+    kb.clearEvents()
+    while True:
+        flag.draw()
+        draw_lamps(lamps, N_LAMPS)
+        text.draw()
+        win.flip()
+        if any(key.name in ENTER_KEYS for key in read_screen_keys(win, kb)):
+            return
 
 
 def ask_participant(
@@ -625,10 +718,13 @@ def ask_participant(
     kb: AnyKeyboard,
     options: RunOptions,
     data_root: Path,
-    machine: str,
-    completed: int,
+    info: SettingsInfo,
 ) -> Participant:
-    """Úvodní obrazovky: nick (a kontrola --short), pak pořadí bloků a jazyk."""
+    """Úvodní obrazovky: nick (a kontrola --short), pak nastavení.
+
+    info je počítač a kalibrace (nick a složku doplní obrazovka s nickem). Na nastavení
+    K = kalibrovat znovu, V = ověřit velikost; pak se nastavení vrátí s dosavadní volbou.
+    """
 
     def exists(nick: str) -> bool:
         """Existuje už sezení s tímto nickem? V simulaci se nekontroluje."""
@@ -636,7 +732,7 @@ def ask_participant(
             session_data_dir(data_root, options.simulated, nick), nick
         )
 
-    nick = ask_nick(win, kb, exists)
+    nick = ask_nick(win, kb, info.calibration.px_per_cm, exists)
     if options.short and not short_plan_allowed(options.simulated, nick):
         win.close()
         sys.exit(
@@ -644,15 +740,20 @@ def ask_participant(
             f"{TEST_PREFIX!r}, nebo spusť simulaci. Nick {nick!r} by šel mezi ostrá data."
         )
     data_dir = session_data_dir(data_root, options.simulated, nick)
-    block_order, language = ask_settings(
-        win,
-        kb,
-        nick,
-        machine,
-        completed,
-        "" if data_dir == data_root else data_dir.name,
-    )
-    return Participant(nick, data_dir, block_order, language)
+    folder = "" if data_dir == data_root else data_dir.name
+    info = replace(info, nick=nick, folder=folder)
+    choice = (assign_block_order(info.completed), DEFAULT_LANGUAGE)
+    while True:
+        block_order, language, action = ask_settings(win, kb, info, choice)
+        choice = (block_order, language)
+        if action == SETTINGS_START:
+            return Participant(nick, data_dir, block_order, language, info.calibration)
+        calibration = info.calibration
+        if action == SETTINGS_CALIBRATE:
+            calibration = calibrate(win, kb, calibration.window_size, calibration)
+            info = replace(info, calibration=calibration)
+        else:
+            show_size_check(win, kb, calibration.px_per_cm)
 
 
 def create_data_path(
@@ -692,10 +793,27 @@ def main() -> None:
     if simulated:
         kb, scenario = make_sim_keyboard(options, seed, completed, rate)
 
-    participant = ask_participant(win, kb, options, data_root, machine, completed)
+    machine_path = data_root / MACHINE_FILE_NAME
+    machine_info = (
+        sim_machine_info(display.size) if simulated else load_machine_info(machine_path)
+    )
+    info = SettingsInfo(
+        nick="",
+        machine=machine,
+        machine_id=machine_info.machine_id,
+        folder="",
+        completed=completed,
+        calibration=ensure_calibration(win, kb, machine_info, display.size),
+    )
+    participant = ask_participant(win, kb, options, data_root, info)
+    px_per_cm = participant.calibration.px_per_cm
     plan, set_digits = build_session(participant.block_order, seed, options.short)
     started_at = datetime.now().astimezone()
     data_path = create_data_path(win, participant, machine, started_at)
+    if not simulated:  # simulace soubor počítače nečte ani nemění
+        save_machine_info(
+            machine_path, replace(machine_info, calibration=participant.calibration)
+        )
     meta_path = companion_path(data_path, META_SUFFIX)
     log_path = companion_path(data_path, LOG_SUFFIX)
     logging.LogFile(str(log_path), level=logging.WARNING, filemode="w")
@@ -721,10 +839,13 @@ def main() -> None:
         seed=seed,
         short=options.short,
         simulated=simulated,
+        machine_id=machine_info.machine_id,
+        calibration=participant.calibration,
+        dpi_aware=DPI_AWARE,
     )
     if simulated:
         meta = {**meta, "sim_scenario": scenario}
-    write_meta(meta_path, meta)
+    write_json(meta_path, meta)
 
     screens_dir = participant.data_dir / (data_path.stem + SIM_SCREENS_SUFFIX)
     if simulated:
@@ -743,13 +864,13 @@ def main() -> None:
             machine=machine,
             writer=writer,
             data_file=data_file,
-            lamps=make_lamps(win),
-            flag=make_flag(win),
-            feedback=make_text(win, FEEDBACK_Y, height=FEEDBACK_HEIGHT),
-            message=make_text(win),
-            digits_stim=make_text(win, height=DIGITS_HEIGHT),
-            prompt=make_text(win, PROMPT_Y),
-            typed=make_text(win, INPUT_Y, height=DIGITS_HEIGHT),
+            lamps=make_lamps(win, px_per_cm),
+            flag=make_flag(win, px_per_cm),
+            feedback=make_text(win, px_per_cm, FEEDBACK_Y, height=FEEDBACK_HEIGHT),
+            message=make_text(win, px_per_cm),
+            digits_stim=make_text(win, px_per_cm, height=DIGITS_HEIGHT),
+            prompt=make_text(win, px_per_cm, PROMPT_Y),
+            typed=make_text(win, px_per_cm, INPUT_Y, height=DIGITS_HEIGHT),
             screens_dir=screens_dir if simulated else None,
         )
         show_instructions(session)
@@ -759,7 +880,7 @@ def main() -> None:
     meta = finish_meta(
         meta, datetime.now().astimezone(), win.nDroppedFrames, practice_rounds
     )
-    write_meta(meta_path, meta)
+    write_json(meta_path, meta)
     print(f"Sezení dokončeno, vypadlé snímky celkem: {win.nDroppedFrames}", flush=True)
     # Zhodnocení až po uložení všech dat, takže měření neovlivní.
     ask_key(session, "end", (END_KEY,), **session_summary(session.rows))

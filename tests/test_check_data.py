@@ -15,17 +15,20 @@ from config import (
     SIM_DIR_NAME,
     SIM_ESCAPE_AT,
     SIM_LANGUAGE,
+    SIM_MACHINE_ID,
     SIM_NICK,
     SIM_PRACTICE_ROUNDS,
+    SIM_PX_PER_CM,
 )
 from logic import (
+    Calibration,
     build_practice,
     build_session,
     companion_path,
     finish_meta,
     make_meta,
     make_row,
-    write_meta,
+    write_json,
 )
 from simulation import (
     sim_effort,
@@ -100,6 +103,9 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
         seed=SAMPLE_SEED,
         short=False,
         simulated=False,
+        machine_id="a1b2c3d4",
+        calibration=Calibration(100.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
+        dpi_aware=None,
     )
     if not aborted:
         meta = finish_meta(meta, SAMPLE_TIME + timedelta(minutes=5), 1, len(rounds))
@@ -107,7 +113,7 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
             [int(sim_effort(b)) for b in range(1, 5)] if simulated else [5, 4, 6, 5]
         )
         meta = meta | {"effort_ratings": ratings}
-    write_meta(companion_path(csv_path, META_SUFFIX), meta)
+    write_json(companion_path(csv_path, META_SUFFIX), meta)
     companion_path(csv_path, LOG_SUFFIX).write_text("", encoding="utf-8")
     return csv_path
 
@@ -244,8 +250,11 @@ def make_simulated(csv_path: Path, **changes: object) -> list[str]:
         "sim_scenario": scenario,
         "keyboard_backend": "simulated",
         "language": SIM_LANGUAGE,
+        "machine_id": SIM_MACHINE_ID,
+        "px_per_cm": SIM_PX_PER_CM,
+        "calibrated_at": None,
     }
-    write_meta(meta_path, meta | sim_meta | changes)
+    write_json(meta_path, meta | sim_meta | changes)
     return scenario
 
 
@@ -313,7 +322,7 @@ def test_real_session_needs_iohub_and_full_screen(tmp_path: Path) -> None:
     csv_path = write_session(tmp_path)
     meta_path = companion_path(csv_path, META_SUFFIX)
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    write_meta(
+    write_json(
         meta_path, meta | {"keyboard_backend": "event", "window_mode": "windowed"}
     )
     problems = check_session(csv_path)[1]
@@ -326,7 +335,7 @@ def test_test_nick_belongs_to_test_dir(tmp_path: Path) -> None:
     csv_path = write_session(tmp_path)
     meta_path = companion_path(csv_path, META_SUFFIX)
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    write_meta(meta_path, meta | {"participant": "test2"})
+    write_json(meta_path, meta | {"participant": "test2"})
     assert any("patří do test/" in p for p in check_session(csv_path)[1])
 
 
@@ -335,7 +344,7 @@ def test_invalid_language_and_block_order(tmp_path: Path) -> None:
     csv_path = write_session(tmp_path)
     meta_path = companion_path(csv_path, META_SUFFIX)
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    write_meta(meta_path, meta | {"language": "de", "block_order": "AABB"})
+    write_json(meta_path, meta | {"language": "de", "block_order": "AABB"})
     problems = check_session(csv_path)[1]
     assert any("jazyk 'de'" in p for p in problems)
     assert any("pořadí bloků 'AABB'" in p for p in problems)
@@ -432,7 +441,7 @@ def test_short_plan_only_for_tests_and_simulation(tmp_path: Path) -> None:
     csv_path = write_session(tmp_path)
     meta_path = companion_path(csv_path, META_SUFFIX)
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    write_meta(meta_path, meta | {"short": True})
+    write_json(meta_path, meta | {"short": True})
     assert any("zkrácený plán" in p for p in check_session(csv_path)[1])
 
 
@@ -475,7 +484,7 @@ def test_effort_ratings(tmp_path: Path) -> None:
     meta_path = companion_path(csv_path, META_SUFFIX)
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     for ratings, expected in (([5, 4, 6], "3 hodnocení"), ([5, 4, 6, 10], "1–9")):
-        write_meta(meta_path, meta | {"effort_ratings": ratings})
+        write_json(meta_path, meta | {"effort_ratings": ratings})
         assert any(expected in p for p in check_session(csv_path)[1]), ratings
 
 
@@ -498,9 +507,91 @@ def test_effort_ratings_aborted_match_complete_blocks(tmp_path: Path) -> None:
     meta_path = companion_path(csv_path, META_SUFFIX)
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     for ratings, ok in (([], True), ([5], True), ([5, 6], False)):
-        write_meta(meta_path, meta | {"effort_ratings": ratings})
+        write_json(meta_path, meta | {"effort_ratings": ratings})
         problems = check_session(csv_path)[1]
         assert (not any("hodnocení úsilí" in p for p in problems)) is ok, (
             ratings,
             problems,
         )
+
+
+def rewrite_meta(csv_path: Path, **changes: object) -> None:
+    """Přepíše vybrané klíče v meta sezení."""
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    write_json(meta_path, meta | changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected"),
+    [
+        ({"px_per_cm": 500.0}, "meta: px_per_cm 500.0 mimo věrohodný rozsah"),
+        ({"px_per_cm": None}, "meta: px_per_cm None mimo věrohodný rozsah"),
+        ({"machine_id": "PC-ANNA"}, "meta: identifikátor počítače 'PC-ANNA'"),
+        ({"calibrated_at": None}, "ostré sezení nemá platné datum kalibrace"),
+        ({"calibrated_at": "včera"}, "ostré sezení nemá platné datum kalibrace"),
+        (
+            {"machine_id": SIM_MACHINE_ID},
+            "ostré sezení má identifikátor počítače simulace",
+        ),
+    ],
+)
+def test_calibration_problems(
+    tmp_path: Path, changes: dict[str, object], expected: str
+) -> None:
+    """Nevěrohodná kalibrace, neplatný identifikátor, ostré sezení bez kalibrace."""
+    csv_path = write_session(tmp_path)
+    rewrite_meta(csv_path, **changes)
+    problems = check_session(csv_path)[1]
+    assert any(problem.startswith(expected) for problem in problems), problems
+
+
+def test_missing_calibration_key(tmp_path: Path) -> None:
+    """Meta ze starší verze programu (bez kalibrace) neprojde."""
+    csv_path = write_session(tmp_path)
+    meta_path = companion_path(csv_path, META_SUFFIX)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["px_per_cm"]
+    write_json(meta_path, meta)
+    assert "meta: chybí klíč px_per_cm" in check_session(csv_path)[1]
+
+
+def test_simulation_needs_fixed_calibration(tmp_path: Path) -> None:
+    """Simulace má pevných SIM_PX_PER_CM a identifikátor simulace."""
+    csv_path = write_session(tmp_path / SIM_DIR_NAME)
+    make_simulated(csv_path, px_per_cm=99.0)
+    problems = check_session(csv_path)[1]
+    assert any(problem.startswith("simulace má mít px_per_cm") for problem in problems)
+    make_simulated(csv_path, calibrated_at="2026-11-16T21:14:00+01:00")
+    problems = check_session(csv_path)[1]
+    assert any(problem.startswith("simulace má mít px_per_cm") for problem in problems)
+
+
+@pytest.mark.parametrize(
+    ("machine", "dpi_aware", "warned"),
+    [
+        ("win", True, False),
+        ("win", False, True),
+        ("win", None, True),
+        ("mac", None, False),
+    ],
+)
+def test_windows_without_dpi_awareness_warns(
+    tmp_path: Path, machine: str, dpi_aware: bool | None, warned: bool
+) -> None:
+    """Windows bez DPI awareness je varování (velikost drží kalibrace), ne chyba."""
+    csv_path = write_session(tmp_path)
+    rewrite_meta(csv_path, dpi_aware=dpi_aware)
+    if machine == "win":
+        win_path = csv_path.with_name(csv_path.name.replace("_mac_", "_win_"))
+        for suffix in ("", META_SUFFIX, LOG_SUFFIX):
+            source = csv_path if not suffix else companion_path(csv_path, suffix)
+            target = win_path if not suffix else companion_path(win_path, suffix)
+            source.rename(target)
+        csv_path = win_path
+        lines = csv_path.read_text(encoding="utf-8").replace(",mac,", ",win,")
+        csv_path.write_text(lines, encoding="utf-8")
+        rewrite_meta(csv_path, machine="win")
+    _, problems, warnings = check_session(csv_path)
+    assert problems == []
+    assert any("DPI awareness" in warning for warning in warnings) is warned

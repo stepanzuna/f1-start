@@ -1,8 +1,12 @@
-# Test na Windows (krok 2w)
+# Test na Windows (kroky 2w a 2k)
 
 Cíl: ověřit, že experiment na Windows běží přes celou obrazovku, s přesným časováním a se
-stejně velkými podněty jako na Macu. Potřebujete asi 30 minut, počítač s Windows, pravítko
-a připojení k internetu.
+stejně velkými podněty jako na Macu. Potřebujete asi 30 minut, počítač s Windows, pravítko,
+platební kartu (nebo jinou kartu stejné velikosti, např. průkaz) a připojení k internetu.
+
+Když už projekt na počítači je z dřívějšího testu, stačí ho aktualizovat: v PowerShellu
+`cd ~\f1-start`, `git pull`, `uv sync` a pokračovat bodem 3. (`git pull` stáhne jen to, co je
+na GitHubu ve větvi `main`.)
 
 ## 1. Nastavení Windows (před testem i před každým měřením)
 
@@ -46,24 +50,24 @@ uv run check_data.py
 Otevře se menší okno, program se sám „prokliká“ celým sezením. `check_data.py` má skončit
 „OK: data odpovídají specifikaci.“ Během simulace nic nemačkejte.
 
-## 4. Zkrácené sezení (asi 6 minut)
+## 4. Kalibrace a zkrácené sezení (asi 10 minut)
 
 ```powershell
 uv run main.py --short
 ```
 
-1. Nick `test_win`, čeština, Enter.
-2. Sledujte: otevřelo se okno **přes celou obrazovku a v popředí**? Jsou texty a světla **ostré**
+1. **Kalibrace** (ukáže se jen poprvé a po změně rozlišení): přiložte kartu na obrazovku
+   k šedému obdélníku a šipkami upravte jeho šířku na šířku karty (vlevo/vpravo o 1 px,
+   nahoru/dolů o 10 px). Enter uloží (funguje až po první šipce).
+2. Nick `test_win`, Enter.
+3. Na obrazovce nastavení stiskněte **V**: ukáže se vlajka a světla. **Pravítkem změřte** šířku
+   a výšku vlajky (má mít 5,0 × 3,0 cm) a průměr jednoho světla (0,8 cm). Enter = zpět.
+   Když vlajka nesedí o víc než 2 mm, stiskněte **K**, kalibraci zopakujte a změřte znovu.
+4. Čeština (C), Enter.
+5. Sledujte: otevřelo se okno **přes celou obrazovku a v popředí**? Jsou texty a světla **ostré**
    (ne rozmazané)? Běží rozsvěcování světel plynule?
-3. Projděte instrukce, testovací kolo a 4 bloky. Na Paasově škále jednou změňte výběr (např. 3 → 7).
-4. Na závěrečné obrazovce: mezerník ji nesmí zavřít, Escape ano.
-5. **Pravítkem změřte** na obrazovce (třeba během pauzy nebo testovacího kola):
-   - šířku a výšku žluté vlajky (objeví se při no-go startu, na Macu 5 × 3 cm),
-   - průměr jednoho světla semaforu.
-
-Pak ještě jednou totéž spuštění **z terminálu ve VS Code** (Terminal → New Terminal,
-`uv run main.py --short`, nick `test_win2`) a jen zkontrolujte, jestli je okno v popředí.
-Po testovacím kole stačí Escape.
+6. Projděte instrukce, testovací kolo a 4 bloky. Na Paasově škále jednou změňte výběr (např. 3 → 7).
+7. Na závěrečné obrazovce: mezerník ji nesmí zavřít, Escape ano.
 
 ## 5. Kontrola dat
 
@@ -79,13 +83,14 @@ Výsledky nemají osobní údaje (nick `test_win`), takže jdou přes GitHub:
 
 ```powershell
 mkdir docs\diag
+copy data\test\test_win_*.csv docs\diag\
 copy data\test\test_win_*_meta.json docs\diag\
 copy data\test\test_win_*_log.txt docs\diag\
 notepad docs\diag\win_poznamky.md
 ```
 
-Do `win_poznamky.md` napište: rozlišení, škálování, frekvenci, rozměry vlajky a světla v cm,
-jestli bylo okno v popředí a ostré (z PowerShellu i z VS Code), a případné chybové výpisy.
+Do `win_poznamky.md` napište: rozlišení, škálování, frekvenci, rozměry vlajky a světla v cm
+(po kalibraci, přes `V`), jestli bylo okno v popředí a ostré, a případné chybové výpisy.
 
 ```powershell
 git add docs\diag

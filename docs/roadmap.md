@@ -99,16 +99,38 @@ s nickem `test_win`, bez osobních údajů) jdou do `docs/diag/`, Claude je pak 
 - [x] příprava: úloha VS Code i pro Windows, znaky v `check_data.py` vypsatelné v konzoli Windows,
       `README.md` (instalace a spuštění na obou systémech), návod `docs/windows.md`
 
-- [ ] (ručně) na Windows nainstalovat uv, `git clone`, `uv sync`, spustit a sepsat, kde a s jakou chybou to selže
-- [ ] zjistit rozlišení, škálování displeje (DPI) a obnovovací frekvenci
-- [ ] (ručně) oba režimy okna z PowerShellu i z terminálu VS Code, skutečná velikost okna v pixelech
-- [ ] (ručně) porovnat fyzickou velikost lamp a vlajky s Macem (pravítkem; Mac: vlajka 5 × 3 cm).
-      Při velkém rozdílu rozhodnout: přijmout (počítač je faktor), nebo jednotky `deg`
-      (`monitors.Monitor` s šířkou displeje v cm a vzdáleností 60 cm, na Retině
-      `win.monitor.setSizePix(win.size)`; varování „Monitor specification not found“ zůstane)
+- [x] (ručně) na Windows nainstalovat uv, `git clone`, `uv sync`, spustit (16. 11. 2026: bez chyb)
+- [x] zjistit rozlišení, škálování displeje (DPI) a obnovovací frekvenci
+      (1920 × 1080, měřítko 125 %, 59,85 Hz; okno jen 1536 × 864 px = obraz roztažený)
+- [x] (ručně) `fullscr` z PowerShellu i z terminálu VS Code: okno v popředí v obou případech
+      (`borderless` netestován, není potřeba)
+- [x] (ručně) porovnat fyzickou velikost lamp a vlajky s Macem: vlajka 11 × 7 cm místo 5 × 3 cm
+      (asi 2,2×). Rozhodnuto: velikosti v cm s kalibrací kartou a DPI awareness (krok 2k)
+- [ ] (ručně) retest po kroku 2k: kalibrace, zkrácené sezení, vlajka pravítkem 5 × 3 cm,
+      vypadlé snímky (první test: 13 za asi 5 minut, většinou 33 ms)
 
 Hotovo když: na Windows se okno otevře v popředí přes celou obrazovku
 a 5 testovacích startů proběhne bez vypadlých snímků.
+
+## Krok 2k: Kalibrace velikosti a škálování na Windows
+
+Důvod a návrh v `docs/experiment.md`, „Kalibrace velikosti“ (schváleno autorem 16. 11. 2026:
+převod velikostí na cm, kalibrace, anonymní identifikátor počítače).
+
+- [x] Windows: DPI awareness před prvním oknem (`enable_dpi_awareness`, jen větev `win32`),
+      `dpi_aware` v meta, varování v `check_data.py`
+- [x] velikosti podnětů a textů v cm (`config.py`), převod podle `px_per_cm`; zámek parametrů v cm
+- [x] kalibrace kartou (logika v `logic.py`, obrazovka v `screens.py`) před nickem, když pro
+      velikost okna chybí; `K` = znovu a `V` = ověření pravítkem na obrazovce nastavení
+- [x] `data/machine.json` (identifikátor počítače, kalibrace) až po obrazovce nastavení;
+      `machine_id`, `px_per_cm`, `calibrated_at` v meta, kontrola v `check_data.py`
+- [x] simulace s pevnými 100 px/cm projde K (tam a zpět) i V; obrázky obrazovek stejné
+      pixel po pixelu jako před krokem
+- [ ] (ručně) Mac: první kalibrace kartou, `V` a pravítko na vlajku
+- [ ] (ručně) Windows: viz retest v kroku 2w
+
+Hotovo když: vlajka změřená pravítkem má na Macu i na Windows 5 × 3 cm (± 2 mm) a simulace
+dává stejné obrázky jako před krokem.
 
 ## Krok 4: Úvodní obrazovka s nickem
 
@@ -280,3 +302,10 @@ Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do k
   schváleny autorem; práh anticipace se v instrukcích nevysvětluje. Simulace celého sezení
   (96 startů) 14:24 min ostrá část. Ruční testy: blok 1 plného sezení, zkrácené sezení do konce.
   Změna výběru na škále ověřena se skutečným kódem klávesnice PsychoPy (ruční test nejistý).
+- 2026-11-16: první test na Windows (1920 × 1080, měřítko 125 %, 59,85 Hz): instalace bez chyb,
+  `fullscr` v popředí z PowerShellu i z terminálu VS Code, ale okno 1536 × 864 (obraz roztažený
+  podle měřítka) a vlajka 11 × 7 cm místo 5 × 3 cm, 13 vypadlých snímků za asi 5 minut.
+  Rozhodnuto autorem: velikosti podnětů v cm s kalibrací kartou na každém počítači, DPI awareness
+  na Windows, anonymní identifikátor počítače v meta (náhodný v `data/machine.json`, ne jméno
+  počítače, které se na macOS mění podle sítě). Krok 2k implementován, čeká na ruční test
+  na Macu a retest na Windows.

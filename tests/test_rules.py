@@ -26,6 +26,8 @@ FORBIDDEN_CALLS = {("time", "sleep"), ("core", "wait"), ("random", "choice")}
 SINGLE_PLATFORM_MODULES = {"AppKit", "Foundation", "objc", "win32api", "ctypes.windll"}
 
 # Schválené parametry z docs/experiment.md (Parametry, rozhodnuto 12. 11. 2026).
+# Velikosti podnětů v cm od 16. 11. 2026 (krok 2k, schváleno autorem): dřívější pixely
+# na MacBooku Pro 14" děleno 100 px/cm.
 APPROVED_PARAMETERS = {
     "LIGHT_INTERVAL": 1.0,
     "FOREPERIODS": [0.5, 1.25, 2.0, 2.75],
@@ -37,12 +39,24 @@ APPROVED_PARAMETERS = {
     "STARTS_PER_SET": 3,
     "DIGITS_PER_LOAD": {"none": 0, "low": 2, "high": 6},
     "N_LAMPS": 5,
-    "LAMP_RADIUS": 40,
-    "LAMP_SPACING": 120,
-    "LAMP_Y": -90,
-    "FLAG_WIDTH": 500,
-    "FLAG_HEIGHT": 300,
-    "FLAG_POS": (0, 180),
+    "LAMP_RADIUS": 0.4,
+    "LAMP_SPACING": 1.2,
+    "LAMP_Y": -0.9,
+    "FLAG_WIDTH": 5.0,
+    "FLAG_HEIGHT": 3.0,
+    "FLAG_POS": (0, 1.8),
+    "CARD_WIDTH_CM": 8.56,  # karta ID-1 (ISO/IEC 7810), 85,60 × 53,98 mm
+    "CARD_HEIGHT_CM": 5.398,
+    "PX_PER_CM_MIN": 20.0,
+    "PX_PER_CM_MAX": 200.0,
+    # Texty v cm (krok 2k): výška písma a pozice řádků
+    "TEXT_HEIGHT": 0.4,
+    "FEEDBACK_HEIGHT": 0.6,
+    "DIGITS_HEIGHT": 0.8,
+    "FEEDBACK_Y": 0.6,
+    "PROMPT_Y": 1.2,
+    "INPUT_Y": 0.0,
+    "MESSAGE_Y": -1.2,
     "EXPECTED_FRAME_RATE": 60,
     "FRAME_RATE_TOLERANCE": 1.0,
     "GO_PER_FOREPERIOD": 9,
@@ -145,3 +159,23 @@ def test_psychopy_imported_after_quieting_log() -> None:
             assert i > quiet, (
                 f"main.py:{node.lineno} importuje {names & loud} před setLevel"
             )
+
+
+def test_dpi_awareness_before_window_imports() -> None:
+    """main.py zapne DPI awareness (Windows) dřív, než načte visual, screens a pyglet.
+
+    PsychoPy při importu visual vytvoří skryté okno; DPI awareness musí být nastavená před ním.
+    """
+    body = parse(ROOT / "main.py").body
+    dpi = next(
+        i
+        for i, node in enumerate(body)
+        if isinstance(node, ast.Assign) and "enable_dpi_awareness" in ast.unparse(node)
+    )
+    window = {"screens", "pyglet", "psychopy.visual", "psychopy.hardware"}
+    for i, node in enumerate(body):
+        names = imported_modules([node])
+        if isinstance(node, ast.ImportFrom) and node.module == "psychopy":
+            names |= {f"psychopy.{alias.name}" for alias in node.names}
+        if names & window:
+            assert i > dpi, f"main.py:{node.lineno} importuje {names & window} před DPI"

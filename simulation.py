@@ -28,15 +28,19 @@ from config import (
     SIM_GO_CYCLE,
     SIM_INTRO_KEYS,
     SIM_KEYBOARD_BACKEND,
+    SIM_MACHINE_ID,
     SIM_NOGO_CYCLE,
     SIM_PRACTICE_ROUNDS,
     SIM_PRESS_RT,
+    SIM_PX_PER_CM,
     SIM_RECALL_CYCLE,
     SIM_WINDOW_MARGIN,
     SIM_WINDOW_SCALE,
     START_KEY,
 )
 from logic import (
+    Calibration,
+    MachineInfo,
     Start,
     build_practice,
     build_session,
@@ -66,11 +70,13 @@ def make_sim_scenario(plan: list[Start], escape_at: int | None = None) -> list[s
 def sim_window_size(screen: tuple[int, int], pixel_ratio: float) -> tuple[int, int]:
     """Velikost okna simulace: podíl displeje, ale aspoň tolik, aby se vešly všechny podněty.
 
-    Okno se zadává v bodech displeje, podněty jsou v pixelech; pixel_ratio je počet pixelů
-    na bod (Retina 2, jinak 1).
+    Okno se zadává v bodech displeje, podněty jsou v cm a simulace je kreslí podle
+    SIM_PX_PER_CM; pixel_ratio je počet pixelů na bod (Retina 2, jinak 1).
     """
-    half_width = max(FLAG_WIDTH / 2, (N_LAMPS - 1) / 2 * LAMP_SPACING + LAMP_RADIUS)
-    half_height = max(FLAG_POS[1] + FLAG_HEIGHT / 2, abs(LAMP_Y) + LAMP_RADIUS)
+    half_width_cm = max(FLAG_WIDTH / 2, (N_LAMPS - 1) / 2 * LAMP_SPACING + LAMP_RADIUS)
+    half_height_cm = max(FLAG_POS[1] + FLAG_HEIGHT / 2, abs(LAMP_Y) + LAMP_RADIUS)
+    half_width = half_width_cm * SIM_PX_PER_CM
+    half_height = half_height_cm * SIM_PX_PER_CM
     needed = (
         round(2 * (half_width + SIM_WINDOW_MARGIN) / pixel_ratio),
         round(2 * (half_height + SIM_WINDOW_MARGIN) / pixel_ratio),
@@ -79,6 +85,11 @@ def sim_window_size(screen: tuple[int, int], pixel_ratio: float) -> tuple[int, i
         min(side, max(round(side * SIM_WINDOW_SCALE), minimum))
         for side, minimum in zip(screen, needed, strict=True)
     )
+
+
+def sim_machine_info(window_size: tuple[int, int]) -> MachineInfo:
+    """Simulace nekalibruje: pevný identifikátor počítače a SIM_PX_PER_CM pro okno simulace."""
+    return MachineInfo(SIM_MACHINE_ID, Calibration(SIM_PX_PER_CM, window_size, None))
 
 
 def expected_outcome(response: str, is_nogo: bool) -> str:

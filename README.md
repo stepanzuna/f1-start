@@ -21,12 +21,16 @@ Díky, že to zkoušíte! Stačí zkrácená verze sezení:
 3. **macOS:** povolte aplikaci Terminál čtení klávesnice: Nastavení → Soukromí a zabezpečení →
    **Sledování vstupu** (a případně i **Zpřístupnění**) → zapnout Terminál, pak Terminál
    restartovat. Bez toho program na klávesy nereaguje.
-4. Spusťte `uv run main.py --short`. Nick zadejte jako `test_` + cokoli (ne skutečné jméno),
-   jazyk zvolte klávesou C/E. Projdete instrukce, testovací kolo a 4 krátké bloky (asi 6 minut).
-5. **Escape** kdykoli ukončí program, závěrečnou obrazovku zavírá také Escape.
+4. Spusťte `uv run main.py --short`. Při prvním spuštění program chce **kalibraci velikosti**:
+   přiložte platební kartu k šedému obdélníku a šipkami upravte jeho šířku na šířku karty,
+   Enter uloží (podněty pak mají na každém displeji stejnou velikost v cm).
+5. Nick zadejte jako `test_` + cokoli (ne skutečné jméno), jazyk zvolte klávesou C/E. Projdete
+   instrukce, testovací kolo a 4 krátké bloky (asi 6 minut).
+6. **Escape** kdykoli ukončí program, závěrečnou obrazovku zavírá také Escape.
 
-**Windows zatím nebyl ověřený.** Pokud zkoušíte na Windows, postupujte prosím podle
-[docs/windows.md](docs/windows.md): pomůže to připravit měření i na Windows.
+**Windows je zatím vyzkoušený jen na jednom počítači a verze s kalibrací velikosti ještě ne.**
+Pokud zkoušíte na Windows, postupujte prosím podle [docs/windows.md](docs/windows.md): pomůže
+to připravit měření i na Windows.
 
 **Zpětná vazba:** chyby a postřehy (co nefungovalo, co bylo nejasné v instrukcích, jak dlouho
 to trvalo) prosím přes [Issues](https://github.com/stepanzuna/f1-start/issues) nebo přímo autorovi.
@@ -72,8 +76,10 @@ uv run main.py --short    # zkrácené sezení pro test (nick musí začínat �
   → Obrazovka → Upřesnit). Jinak program skončí s hláškou.
 - **Escape** kdykoli ukončí program. Už zapsaná data zůstanou, sezení se označí jako přerušené.
 
-Průběh sezení: nick účastníka → pořadí bloků a jazyk → instrukce → testovací kolo (lze opakovat)
-→ 4 bloky po 24 startech, po každém hodnocení úsilí (Paasova škála) a pauza → zhodnocení.
+Průběh sezení: kalibrace velikosti (jen poprvé na počítači) → nick účastníka → pořadí bloků
+a jazyk (zde `K` = kalibrovat znovu, `V` = ověřit velikost vlajky pravítkem, má 5 × 3 cm)
+→ instrukce → testovací kolo (lze opakovat) → 4 bloky po 24 startech, po každém hodnocení
+úsilí (Paasova škála) a pauza → zhodnocení.
 
 ## Data
 
@@ -82,6 +88,7 @@ Každé sezení uloží do složky `data/` tři soubory se jménem `{nick}_{mac|
 a `_log.txt` (varování PsychoPy). Sloupce a metadata popisuje [docs/experiment.md](docs/experiment.md).
 
 - Nick začínající `pilot` jde do `data/pilot/`, `test` do `data/test/`. Do analýzy se nepočítají.
+- `data/machine.json` drží anonymní náhodný identifikátor počítače a jeho kalibraci velikosti.
 - **Složka `data/` se nikdy nenahrává na GitHub** (GDPR). Je v `.gitignore` a hlídá to i hook.
 - Kontrola dat jednoho sezení: `uv run check_data.py data/<soubor>.csv`
   (bez argumentu zkontroluje nejnovější sezení).

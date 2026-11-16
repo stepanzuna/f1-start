@@ -8,6 +8,7 @@ import pytest
 
 from config import CSV_COLUMNS, FOREPERIODS
 from logic import (
+    Calibration,
     Start,
     classify_press,
     companion_path,
@@ -19,7 +20,7 @@ from logic import (
     make_meta,
     make_row,
     outcome_without_press,
-    write_meta,
+    write_json,
 )
 
 PRAGUE_WINTER = timezone(timedelta(hours=1))
@@ -92,6 +93,9 @@ def sample_meta() -> dict[str, object]:
         seed=1,
         short=False,
         simulated=False,
+        machine_id="a1b2c3d4",
+        calibration=Calibration(100.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
+        dpi_aware=None,
     )
 
 
@@ -131,8 +135,8 @@ def test_finish_meta() -> None:
 def test_write_meta_roundtrip(tmp_path: Path) -> None:
     """Uložená metadata jdou načíst zpět a nezůstane po nich dočasný soubor."""
     path = tmp_path / "x_meta.json"
-    write_meta(path, sample_meta())
-    write_meta(path, finish_meta(sample_meta(), SAMPLE_TIME, 0, 1))
+    write_json(path, sample_meta())
+    write_json(path, finish_meta(sample_meta(), SAMPLE_TIME, 0, 1))
     assert json.loads(path.read_text(encoding="utf-8"))["aborted"] is False
     assert [p.name for p in tmp_path.iterdir()] == ["x_meta.json"]
 
@@ -187,8 +191,11 @@ def test_meta_with_numpy_values_is_json(tmp_path: Path) -> None:
         seed=1,
         short=False,
         simulated=False,
+        machine_id="a1b2c3d4",
+        calibration=Calibration(100.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
+        dpi_aware=None,
     )
-    write_meta(tmp_path / "m.json", meta)
+    write_json(tmp_path / "m.json", meta)
     assert (
         json.loads((tmp_path / "m.json").read_text(encoding="utf-8"))["frame_rate_hz"]
         == 59.98

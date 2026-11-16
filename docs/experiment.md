@@ -47,13 +47,13 @@ Po každém bloku: hodnocení vnímané námahy na Paasově škále 1–9 a pauz
 - Generování: náhodně 0–9 **bez opakování** v rámci sady, nula smí být první. Číslice se
   generují předem v plánu sezení, stejný seed = stejné číslice.
 - Zobrazení: všechny číslice najednou uprostřed obrazovky, oddělené mezerou („4 7 1 9 0 3“),
-  bílé písmo, výška 80 px.
+  bílé písmo, výška 0,8 cm.
 - Vybavení: bez časového limitu. Přijímá jen číslice 0–9, nejvýš tolik, kolik jich bylo
   zobrazeno, Backspace maže. Enter potvrdí i kratší odpověď.
 - `recall_correct = True` jen při přesné shodě celé sekvence včetně pořadí.
 - Psaní číslic (krok 6): horní řada, numerická klávesnice i česká horní řada bez Shiftu
   („+ěščřžýáíé“ = 1234567890). Na obrazovce vybavení je výzva ve zvoleném jazyce a napsané
-  číslice velikostí 80 px, oddělené mezerou.
+  číslice velikostí 0,8 cm, oddělené mezerou.
 - Číslice jsou v plánu v samostatném slovníku podle (blok, pořadí sady); `Start` se nemění.
 - Zpětná vazba k vybavení: v ostré části žádná (stejné ve všech podmínkách), v testovacím kole
   „Správně“ nebo „Správně bylo: 4 7“.
@@ -104,15 +104,18 @@ Pořadí vyhodnocení stisku v okně odpovědi: `rt < 0` → `jump_start`; no-go
 | `omission` | „Bez reakce“ | “No reaction” |
 
 Hláška se zobrazí ve zvoleném jazyce po celou pauzu (`REST_INTERVAL`) nad zhasnutými lampami:
-střed na y = 60 px, výška písma 60 px, bílá (krok 5, 13. 11. 2026; lampy sahají do y = −50,
-mezera asi 80 px). Text se nastaví jednou před pauzou, mimo měřený start.
+střed na y = 0,6 cm, výška písma 0,6 cm, bílá (krok 5, 13. 11. 2026; lampy sahají do
+y = −0,5 cm, mezera asi 0,8 cm). Text se nastaví jednou před pauzou, mimo měřený start.
 
 ## Úvodní obrazovka a nick
 
-- Dvě obrazovky pro experimentátora (česky, krok 4):
+- Dvě obrazovky pro experimentátora (česky, krok 4); před nimi jen při prvním spuštění
+  na počítači (nebo po změně rozlišení) kalibrace velikosti (krok 2k):
   1. **Nick:** experimentátor napíše nick a potvrdí Enterem.
-  2. **Nastavení:** ukáže nick, počítač, přiřazené pořadí bloků a jazyk účastníka.
-     `A` = ABBA, `B` = BAAB, `C` = čeština, `E` = English, Enter = začít sezení.
+  2. **Nastavení:** ukáže nick, počítač (`mac`/`win` a identifikátor), přiřazené pořadí
+     bloků, jazyk účastníka a kalibraci velikosti. `A` = ABBA, `B` = BAAB, `C` = čeština,
+     `E` = English, `K` = kalibrovat znovu, `V` = ověřit velikost pravítkem,
+     Enter = začít sezení (krok 2k: K a V viz Kalibrace velikosti).
      Volby jsou na zvláštní obrazovce, protože písmena A/B/C/E se dají psát i do nicku.
 - Textový vstup čte znaky z `KeyPress.code` (napsaný znak včetně Shiftu a rozložení
   klávesnice), ovládací klávesy z `KeyPress.name` (`return`, `num_enter`, `backspace`,
@@ -398,6 +401,42 @@ Anglicky:
 >
 > Please call the experimenter.
 
+## Kalibrace velikosti (krok 2k, rozhodnuto 16. 11. 2026)
+
+Důvod: první test na Windows (16. 11. 2026, displej 1920 × 1080 s měřítkem 125 %) ukázal
+podněty asi 2,2× větší než na Macu (vlajka 11 × 7 cm místo 5 × 3 cm). Pixely mají na každém
+displeji jinou fyzickou velikost a Windows obraz navíc roztahoval podle měřítka zobrazení.
+
+- **Velikosti podnětů a textů jsou v cm** (`config.py`, tabulka Parametry). Převádějí se
+  na pixely podle kalibrace (`px_per_cm`). Hodnoty v cm jsou dřívější pixely na MacBooku Pro 14"
+  (254 ppi = 100 px/cm), na Macu se tak velikost nezměnila.
+- **Windows:** program před prvním oknem zapne DPI awareness (`SetProcessDpiAwareness`,
+  per-monitor). Okno pak má nativní rozlišení displeje bez roztažení obrazu, což má zlepšit
+  i ostrost a časování. Výsledek se ukládá do meta (`dpi_aware`); když se nepodaří,
+  `check_data.py` dá varování (velikost i tak drží kalibrace).
+- **Kalibrace kartou:** šedý obdélník v poměru stran karty ID-1 (platební karta, průkaz,
+  85,60 × 53,98 mm). Experimentátor přiloží kartu k obrazovce a šipkami upraví šířku obdélníku
+  na šířku karty: vlevo/vpravo o 1 px, nahoru/dolů o 10 px, Enter uloží. Pod obdélníkem je
+  šířka v px a výsledek v px/cm. Přijme se jen věrohodná hodnota 20–200 px/cm a Enter platí
+  až po úpravě šipkami, aby nešlo omylem potvrdit neměřený odhad (třeba Enterem po nicku).
+  Když se po `K` hodnota nezmění, zůstane původní kalibrace i s datem (`calibrated_at` = kdy
+  byla hodnota naměřena).
+- Kalibrace se ukáže **před obrazovkou s nickem, jen když pro tuto velikost okna chybí**
+  (první spuštění, jiné rozlišení). Jinak ji jde zopakovat klávesou `K` na obrazovce nastavení.
+  Před první kalibrací se velikost písma a výchozí šířka obdélníku odhadnou z obvyklé výšky
+  displeje notebooku (19,6 cm), na běžném notebooku tak stačí pár stisků.
+- **Ověření pravítkem:** `V` na obrazovce nastavení ukáže vlajku a rozsvícené lampy v kalibrované
+  velikosti (vlajka 5,0 × 3,0 cm, průměr světla 0,8 cm, středy světel po 1,2 cm), Enter = zpět.
+- **Soubor počítače `data/machine.json`:** anonymní identifikátor počítače (8 náhodných
+  šestnáctkových znaků, vznikne při prvním spuštění; nic o počítači neprozrazuje, na rozdíl
+  od jména počítače se nemění podle sítě) a poslední kalibrace (px/cm, velikost okna, čas).
+  Zapíše se spolu se založením sezení po obrazovce nastavení, takže před koncem nastavení
+  se do `data/` pořád nic nezapíše. Kalibrace z přerušeného nastavení (Escape) se neuloží.
+  Složka `data/` se mezi počítači nekopíruje: nový počítač = nový identifikátor a kalibrace.
+- **Simulace** nekalibruje: pevných 100 px/cm, identifikátor `00000000` a `calibrated_at = null`,
+  soubor počítače nečte ani nemění. Na obrazovce nastavení stiskne `K` (šipky tam a zpět, Enter: zůstane
+  100 px/cm) a `V`, takže projde i kód kalibrační obrazovky.
+
 ## Data
 
 Soubor `data/{nick}_{stroj}_{YYYY-MM-DD_HHMM}.csv`, kde `stroj` je `mac` nebo `win`
@@ -437,6 +476,9 @@ Doplněno 13. 11. 2026: skutečná velikost okna v px, `simulated` (režim simul
 `planned_starts` (počet startů v plánu sezení), u git commitu přípona `-dirty`, když běžel
 kód s necommitnutými změnami. `keyboard_backend` je backend, který PsychoPy skutečně použil;
 když to není `iohub`, program skončí ještě před otevřením okna.
+Doplněno 16. 11. 2026 (krok 2k): `machine_id` (anonymní identifikátor počítače, rozliší
+v analýze jednotlivé počítače se stejným `machine`), `px_per_cm` a `calibrated_at` (kalibrace
+velikosti), `dpi_aware` (Windows: `true`/`false`, jinde `null`). Sloupce CSV se nemění.
 
 Meta se zapíše po obrazovce nastavení (před prvním startem) s `aborted = true` a `ended_at = null`. Na řádném konci
 sezení se přepíše (`aborted = false`, konec, vypadlé snímky celkem). Přerušené sezení tak má
@@ -498,8 +540,9 @@ Rozhodnuto 14. 11. 2026 (autor):
 
 - macOS: pevných 60 Hz místo ProMotion; vypnout True Tone, Night Shift, automatický jas;
   režim Nerušit; na nabíječce; spouštět z Terminálu; VS Code během měření zavřený.
-- Windows: pevná obnovovací frekvence; ověřit škálování displeje; vypnout oznámení;
-  napájení na vysoký výkon.
+- Windows: pevná obnovovací frekvence; vypnout oznámení; napájení na vysoký výkon,
+  notebook v zásuvce. Škálování displeje řeší program (DPI awareness a kalibrace).
+- Na každém počítači před prvním měřením kalibrace kartou a ověření vlajky pravítkem (`V`).
 - Tichá místnost, stejné osvětlení, vzdálenost asi 60 cm, vždy mezerník.
 
 ## Parametry (rozhodnuto 12. 11. 2026, neměnit bez dohody)
@@ -511,7 +554,9 @@ Rozhodnuto 14. 11. 2026 (autor):
 | `RESPONSE_WINDOW` | 1,5 s |
 | `REST_INTERVAL` | 1,0 s, během něj zpětná vazba |
 | `ANTICIPATION_THRESHOLD` | 0,1 s |
-| vlajka | 500 × 300 px, střed (0, 180); lampy poloměr 40 px na y = −90, rozestup 120 px |
+| vlajka | 5,0 × 3,0 cm, střed (0; 1,8 cm); lampy poloměr 0,4 cm na y = −0,9 cm, rozestup 1,2 cm (do 16. 11. 2026 v px: 500 × 300, (0, 180), 40, −90, 120; na MacBooku Pro 14" totéž) |
+| texty | výška písma 0,4 cm, zpětná vazba 0,6 cm, číslice 0,8 cm; řádky na y = 1,2 / 0 / −1,2 cm, zpětná vazba 0,6 cm |
+| kalibrace | karta ID-1 85,60 × 53,98 mm, věrohodný rozsah 20–200 px/cm |
 | zpětná vazba | reakční čas v ms a hlášky o chybách, stejná ve všech podmínkách |
 | testovací kolo | 4 starty bez číslic + 1 sada s 2 číslicemi |
 | `DIGITS_DURATION` | 4,0 s zobrazení číslic, stejně pro obě zátěže (změněno 13. 11. 2026 z 2 s) |

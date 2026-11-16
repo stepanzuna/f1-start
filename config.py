@@ -13,14 +13,38 @@ OFF = "#333333"
 ON = "red"
 FLAG_COLOR = "#EF9F27"
 
-# Rozložení obrazovky (v pixelech, střed obrazovky je (0, 0))
+# Rozložení obrazovky v centimetrech, střed obrazovky je (0, 0). Na pixely se převádí podle
+# kalibrace počítače, takže podněty mají na každém displeji stejnou fyzickou velikost
+# (krok 2k, 16. 11. 2026). Hodnoty = dřívější pixely na MacBooku Pro 14" (254 ppi = 100 px/cm).
 N_LAMPS = 5
-LAMP_RADIUS = 40
-LAMP_SPACING = 120
-LAMP_Y = -90
-FLAG_WIDTH = 500
-FLAG_HEIGHT = 300
-FLAG_POS = (0, 180)
+LAMP_RADIUS = 0.4
+LAMP_SPACING = 1.2
+LAMP_Y = -0.9
+FLAG_WIDTH = 5.0
+FLAG_HEIGHT = 3.0
+FLAG_POS = (0, 1.8)
+
+# Kalibrace velikosti (docs/experiment.md, „Kalibrace velikosti“): experimentátor šipkami
+# srovná šířku obdélníku s kartou formátu ID-1 (platební karta, průkaz), 85,60 × 53,98 mm.
+CARD_WIDTH_CM = 8.56
+CARD_HEIGHT_CM = 5.398
+CARD_COLOR = "#555555"
+MM_PER_CM = 10
+CALIBRATION_KEYS = {"left": -1, "right": 1, "down": -10, "up": 10}  # změna šířky v px
+PX_PER_CM_MIN = (
+    20.0  # věrohodný rozsah: monitor 24" Full HD asi 36, MacBook Pro 14" 100
+)
+PX_PER_CM_MAX = 200.0
+PX_PER_CM_DECIMALS = 3
+# Před první kalibrací: odhad výšky displeje notebooku (MacBook Pro 14" 19,6 cm, 15,6" 16:9
+# asi 19,4 cm). Určí velikost písma na kalibrační obrazovce a výchozí šířku obdélníku.
+ASSUMED_SCREEN_HEIGHT_CM = 19.6
+CALIBRATION_TEXT_Y = 4.5  # cm, návod nad obdélníkem
+CALIBRATION_VALUE_Y = -4.0  # cm, naměřená hodnota pod obdélníkem
+SIZE_CHECK_TEXT_Y = -3.0  # cm, text pod lampami na obrazovce kontroly velikosti
+# Windows: proces „per-monitor DPI aware“ (PROCESS_PER_MONITOR_DPI_AWARE), okno v nativních
+# pixelech bez roztažení podle měřítka zobrazení (125 % apod.)
+WINDOWS_DPI_AWARENESS = 2
 
 # Časy (v sekundách)
 FOREPERIODS = [0.5, 1.25, 2.0, 2.75]
@@ -44,7 +68,7 @@ N_BLOCKS = 4
 STARTS_PER_SET = 3
 DIGITS_PER_LOAD = {"none": 0, "low": 2, "high": 6}
 DIGITS = "0123456789"
-DIGITS_HEIGHT = 80  # px
+DIGITS_HEIGHT = 0.8  # cm
 # Česká klávesnice: horní řada bez Shiftu píše tyto znaky; při vybavení se berou jako číslice
 # (i velká písmena při Caps Lock). „+“ je i plus na numerické klávesnici (iohub obojí hlásí
 # jako num_add), překlep tam zapíše 1; účastník ho vidí a může smazat.
@@ -94,6 +118,11 @@ DROPPED_FRAME_WARNINGS_MAX = 100_000
 
 # Data
 DATA_DIR_NAME = "data"
+# Údaje o počítači v data/: anonymní náhodný identifikátor a kalibrace velikosti. Zapisuje se
+# spolu se založením sezení (po obrazovce nastavení), simulace ho nečte ani nemění.
+MACHINE_FILE_NAME = "machine.json"
+MACHINE_ID_BYTES = 4  # identifikátor = 8 šestnáctkových znaků
+MACHINE_ID_CHARS = "0123456789abcdef"  # jak je píše secrets.token_hex
 META_SUFFIX = "_meta.json"
 LOG_SUFFIX = "_log.txt"
 PILOT_PREFIX = "pilot"  # nick pilot… → data/pilot/, mimo střídání pořadí bloků
@@ -111,13 +140,14 @@ LANGUAGE_KEYS = {"c": "cs", "e": "en"}
 LANGUAGES = ("cs", "en")
 DEFAULT_LANGUAGE = "cs"
 LANGUAGE_NAMES = {"cs": "čeština", "en": "English"}
-TEXT_HEIGHT = 40  # px
-# Zpětná vazba v pauze: nad lampami (lampy sahají do y = -50, vlajka v pauze není)
-FEEDBACK_Y = 60  # px
-FEEDBACK_HEIGHT = 60  # px
-PROMPT_Y = 120  # px, pozice řádků na obrazovce s nickem
-INPUT_Y = 0
-MESSAGE_Y = -120
+# Texty: výška písma a pozice řádků v cm (převod na pixely podle kalibrace)
+TEXT_HEIGHT = 0.4
+# Zpětná vazba v pauze: nad lampami (lampy sahají do y = -0,5, vlajka v pauze není)
+FEEDBACK_Y = 0.6
+FEEDBACK_HEIGHT = 0.6
+PROMPT_Y = 1.2  # pozice řádků na obrazovce s nickem a s vybavením
+INPUT_Y = 0.0
+MESSAGE_Y = -1.2
 CURSOR = "_"
 TEXT_WRAP_SHARE = 0.8  # podíl šířky okna, na který se text zalomí
 TEXT_COLOR = "white"
@@ -136,12 +166,38 @@ FOLDER_NOTE = {
     "sim": "data/sim/ (simulace)",
 }
 SETTINGS_SCREEN = (
-    "Účastník: {nick}    počítač: {machine}    data: {folder}\n\n"
+    "Účastník: {nick}    počítač: {machine} ({machine_id})    data: {folder}\n\n"
     "Pořadí bloků: {block_order}    ({order_note})\n"
     "A = ABBA, B = BAAB\n\n"
     "Jazyk účastníka: {language_name}\n"
     "C = čeština, E = English\n\n"
+    "Velikost podnětů: {calibration}\n"
+    "K = kalibrovat znovu, V = ověřit pravítkem\n\n"
     "Enter = začít sezení"
+)
+# Klávesy obrazovky nastavení, které otevřou jinou obrazovku (pak se nastavení vrátí)
+SETTINGS_START = "start"
+SETTINGS_CALIBRATE = "calibrate"
+SETTINGS_CHECK_SIZE = "check_size"
+SETTINGS_ACTIONS = {"k": SETTINGS_CALIBRATE, "v": SETTINGS_CHECK_SIZE}
+CALIBRATION_NOTE = "{px_per_cm} px/cm, kalibrace {date}"
+CALIBRATION_NOTE_SIM = "{px_per_cm} px/cm (simulace, bez kalibrace)"
+CALIBRATION_SCREEN = (
+    "Kalibrace velikosti obrazovky\n\n"
+    "Přiložte na obrazovku platební kartu ({card_width} × {card_height} mm) a šipkami upravte\n"
+    "šedý obdélník na stejnou šířku jako karta.\n"
+    "Šipky vlevo / vpravo = o 1 px, nahoru / dolů = o 10 px, Enter = uložit"
+)
+CALIBRATION_VALUE = "Šířka obdélníku {width} px = {px_per_cm} px/cm"
+CALIBRATION_ADJUST_FIRST = "Enter uloží až po úpravě šipkami (i když už obdélník sedí)."
+CALIBRATION_INVALID = (
+    "Mimo věrohodný rozsah {minimum}–{maximum} px/cm, upravte šířku obdélníku."
+)
+SIZE_CHECK_SCREEN = (
+    "Ověření velikosti pravítkem\n"
+    "Vlajka: {flag_width} × {flag_height} cm, průměr světla {lamp_diameter} cm, "
+    "středy světel po {lamp_spacing} cm\n\n"
+    "Enter = zpět"
 )
 
 # Texty pro účastníka v obou jazycích (docs/experiment.md, „Texty pro účastníka“)
@@ -329,8 +385,14 @@ SIM_EFFORT_RATINGS = ("3", "6", "4", "8")  # hodnocení bloků 1–4 na Paasově
 SIM_NICK = "sim"
 SIM_LANGUAGE = "en"
 # Klávesy, které simulace „napíše“ na úvodních obrazovkách: příliš krátký nick (chyba),
-# Backspace, nick „sim“, přepnutí jazyka na EN, start sezení.
-SIM_INTRO_KEYS = ("x", "return", "backspace", "s", "i", "m", "return", "e", "return")
+# Backspace, nick „sim“; na nastavení kalibrace (K, šipky tam a zpět, Enter: zůstane
+# SIM_PX_PER_CM), ověření velikosti (V, Enter), přepnutí jazyka na EN, start sezení.
+SIM_CALIBRATION_KEYS = ("k", "right", "up", "left", "down", "return")
+SIM_INTRO_KEYS = (
+    *("x", "return", "backspace", "s", "i", "m", "return"),
+    *SIM_CALIBRATION_KEYS,
+    *("v", "return", "e", "return"),
+)
 # Simulace uloží obrázek první pauzy po každém typu výsledku (obsah okna PsychoPy,
 # ne obrazovky). Na Retině je obrázek 2× zvětšený výřez středu okna (omezení
 # getMovieFrame), dlouhý text proto vypadá useknutý; vzhled ověřuje ruční test.
@@ -339,11 +401,14 @@ SIM_SCREENS_SUFFIX = "_screens"
 # Backspacem, kratší odpověď (jen první číslice).
 SIM_RECALL_CYCLE = ("correct", "wrong", "corrected", "short")
 SIM_DIR_NAME = "sim"
+# Simulace nekalibruje: pevná velikost (jako MacBook Pro 14") a pevný identifikátor počítače.
+SIM_PX_PER_CM = 100.0
+SIM_MACHINE_ID = "00000000"
 # Simulace běží v menším okně uprostřed (jen pro ni, ostrý běh ho nedostane), aby nechala
 # volnou obrazovku. Okno je aspoň tak velké, aby se vešly lampy i vlajka s okrajem.
 SIM_WINDOW_MODE = "windowed"
 SIM_WINDOW_SCALE = 0.4  # podíl velikosti displeje
-SIM_WINDOW_MARGIN = 40  # px kolem podnětů
+SIM_WINDOW_MARGIN = 40  # px kolem podnětů (okno simulace je v pixelech)
 SIM_KEYBOARD_BACKEND = "simulated"
 # Typy odpovědí: čas stisku vůči zhasnutí v sekundách (záporný = těsně před zhasnutím,
 # přečtený až v prvním snímku okna odpovědi); "early" = stisk během rozsvěcování lamp,

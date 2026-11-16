@@ -15,6 +15,7 @@ from config import (
     REST_INTERVAL,
     SIM_DIR_NAME,
     SIM_ESCAPE_AT,
+    SIM_PX_PER_CM,
 )
 from logic import (
     RunOptions,
@@ -188,7 +189,7 @@ def test_sim_window_fits_stimuli(screen: tuple[int, int], ratio: float) -> None:
     width, height = sim_window_size(screen, ratio)
     assert width <= screen[0]
     assert height <= screen[1]
-    flag_top = FLAG_POS[1] + FLAG_HEIGHT / 2
+    flag_top = (FLAG_POS[1] + FLAG_HEIGHT / 2) * SIM_PX_PER_CM
     assert height * ratio / 2 >= min(flag_top, screen[1] * ratio / 2)
 
 
