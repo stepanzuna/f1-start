@@ -13,10 +13,15 @@ from typing import TextIO
 from psychopy import logging, visual
 
 from config import (
+    DIGITS_HEIGHT,
     ENTER_KEYS,
+    FEEDBACK_HEIGHT,
+    FEEDBACK_Y,
+    INPUT_Y,
     INSTRUCTION_SCREENS,
     PRACTICE_CONTINUE_KEY,
     PRACTICE_REPEAT_KEY,
+    PROMPT_Y,
     RECALL_FEEDBACK_DURATION,
     REST_INTERVAL,
     START_KEY,
@@ -36,13 +41,14 @@ from logic import (
 from screens import (
     AnyKeyboard,
     ask_recall,
+    make_text,
     read_screen_keys,
     save_frame,
     set_text,
     show_digits,
     show_message,
 )
-from trial import run_start, show_pause
+from trial import make_flag, make_lamps, run_start, show_pause
 
 
 @dataclass
@@ -70,6 +76,39 @@ class Session:
     rows: list[dict[str, object]] = field(
         default_factory=list
     )  # pro závěrečné zhodnocení
+
+
+def make_session(
+    win: visual.Window,
+    kb: AnyKeyboard,
+    rate: float,
+    px_per_cm: float,
+    language: str,
+    nick: str,
+    machine: str,
+    writer: csv.DictWriter,
+    data_file: TextIO,
+    screens_dir: Path | None,
+) -> Session:
+    """Sezení s podněty v kalibrované velikosti (lampy, vlajka, texty) a otevřeným CSV."""
+    return Session(
+        win=win,
+        kb=kb,
+        rate=rate,
+        language=language,
+        nick=nick,
+        machine=machine,
+        writer=writer,
+        data_file=data_file,
+        lamps=make_lamps(win, px_per_cm),
+        flag=make_flag(win, px_per_cm),
+        feedback=make_text(win, px_per_cm, FEEDBACK_Y, height=FEEDBACK_HEIGHT),
+        message=make_text(win, px_per_cm),
+        digits_stim=make_text(win, px_per_cm, height=DIGITS_HEIGHT),
+        prompt=make_text(win, px_per_cm, PROMPT_Y),
+        typed=make_text(win, px_per_cm, INPUT_Y, height=DIGITS_HEIGHT),
+        screens_dir=screens_dir,
+    )
 
 
 def capture_once(session: Session, name: str) -> Path | None:
@@ -102,77 +141,78 @@ def ask_key(
                 return key.name
 
 
-def run_set(session: Session, starts: list[Start], digits: str, practice: bool) -> None:
-    """Jedna sada: číslice, starty se zpětnou vazbou, vybavení, zápis CSV po sadě.
+# Výsledek jednoho startu do zápisu: pořadí v sezení, start, výsledek, RT, vypadlé snímky
+StartResult = tuple[int, Start, str, float | None, int]
 
-    V testovacím kole (practice) po vybavení ukáže, jestli bylo správně.
+
+def run_counted_start(session: Session, start: Start) -> StartResult:
+    """Jeden start s počítáním vypadlých snímků, výpisem do terminálu a pauzou se zpětnou vazbou."""
+    session.trial_index += 1
+    dropped_before = session.win.nDroppedFrames
+    outcome, rt = run_start(
+        session.win,
+        session.lamps,
+        session.rate,
+        session.kb,
+        session.flag,
+        start,
+    )
+    dropped = session.win.nDroppedFrames - dropped_before
+    print(
+        session.trial_index,
+        start.block,
+        start.load,
+        start.foreperiod,
+        start.is_nogo,
+        outcome,
+        None if rt is None else round(rt * 1000, 1),
+        f"vypadlé snímky: {dropped}",
+    )
+    show_pause(
+        session.win,
+        session.lamps,
+        REST_INTERVAL,
+        session.rate,
+        session.kb,
+        session.feedback,
+        feedback_text(outcome, rt, session.language),
+        capture_path=capture_once(session, outcome),
+    )
+    return (session.trial_index, start, outcome, rt, dropped)
+
+
+def ask_set_recall(session: Session, digits: str, practice: bool) -> str:
+    """Vybavení číslic sady; v testovacím kole (practice) i hláška, jestli bylo správně."""
+    typed = ask_recall(
+        session.win,
+        session.kb,
+        session.prompt,
+        session.typed,
+        TEXTS[session.language]["recall_prompt"],
+        len(digits),
+        capture_path=capture_once(session, "recall"),
+    )
+    print(f"číslice {digits}, odpověď {typed}", flush=True)
+    if practice:
+        show_message(
+            session.win,
+            session.kb,
+            session.message,
+            recall_feedback_text(digits, typed, session.language),
+            RECALL_FEEDBACK_DURATION,
+            session.rate,
+            capture_path=capture_once(session, "recall_feedback"),
+        )
+    return typed
+
+
+def write_set(
+    session: Session, results: list[StartResult], digits: str, typed: str
+) -> None:
+    """Zápis sady do CSV po vybavení (docs/experiment.md, Data) a hned na disk.
+
+    Část 1 testovacího kola (bez číslic) se tak zapisuje po každém startu.
     """
-    if digits:
-        show_digits(
-            session.win,
-            session.kb,
-            session.digits_stim,
-            digits,
-            session.rate,
-            capture_path=capture_once(session, "digits"),
-        )
-    results = []
-    for start in starts:
-        session.trial_index += 1
-        dropped_before = session.win.nDroppedFrames
-        outcome, rt = run_start(
-            session.win,
-            session.lamps,
-            session.rate,
-            session.kb,
-            session.flag,
-            start,
-        )
-        dropped = session.win.nDroppedFrames - dropped_before
-        results.append((session.trial_index, start, outcome, rt, dropped))
-        print(
-            session.trial_index,
-            start.block,
-            start.load,
-            start.foreperiod,
-            start.is_nogo,
-            outcome,
-            None if rt is None else round(rt * 1000, 1),
-            f"vypadlé snímky: {dropped}",
-        )
-        show_pause(
-            session.win,
-            session.lamps,
-            REST_INTERVAL,
-            session.rate,
-            session.kb,
-            session.feedback,
-            feedback_text(outcome, rt, session.language),
-            capture_path=capture_once(session, outcome),
-        )
-    typed = ""
-    if digits:
-        typed = ask_recall(
-            session.win,
-            session.kb,
-            session.prompt,
-            session.typed,
-            TEXTS[session.language]["recall_prompt"],
-            len(digits),
-            capture_path=capture_once(session, "recall"),
-        )
-        print(f"číslice {digits}, odpověď {typed}", flush=True)
-        if practice:
-            show_message(
-                session.win,
-                session.kb,
-                session.message,
-                recall_feedback_text(digits, typed, session.language),
-                RECALL_FEEDBACK_DURATION,
-                session.rate,
-                capture_path=capture_once(session, "recall_feedback"),
-            )
-    # Zápis po sadě (docs/experiment.md, Data); část 1 testovacího kola po startu.
     for index, start, outcome, rt, dropped in results:
         row = make_row(
             participant=session.nick,
@@ -190,6 +230,25 @@ def run_set(session: Session, starts: list[Start], digits: str, practice: bool) 
         session.rows.append(row)
     session.data_file.flush()
     logging.flush()
+
+
+def run_set(session: Session, starts: list[Start], digits: str, practice: bool) -> None:
+    """Jedna sada: číslice, starty se zpětnou vazbou, vybavení, zápis CSV po sadě.
+
+    V testovacím kole (practice) po vybavení ukáže, jestli bylo správně.
+    """
+    if digits:
+        show_digits(
+            session.win,
+            session.kb,
+            session.digits_stim,
+            digits,
+            session.rate,
+            capture_path=capture_once(session, "digits"),
+        )
+    results = [run_counted_start(session, start) for start in starts]
+    typed = ask_set_recall(session, digits, practice) if digits else ""
+    write_set(session, results, digits, typed)
 
 
 def run_sets(
