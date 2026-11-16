@@ -212,11 +212,11 @@ Hotovo když: testovací kolo jde zopakovat a v CSV je odlišené od ostré čá
 
 Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do kódu.
 
-## Refaktorizace 2: rozdělení `main.py` (schváleno autorem 16. 11. 2026)
+## Refaktorizace 2: rozdělení `main.py` (schváleno autorem 16. 11. 2026, hotovo)
 
 `main.py` měl po kroku 2k 893 řádků (okno, start, průběh sezení, úvod, kalibrace, `main()`).
 Rozdělení do čtyř nových souborů, nejdřív jen přesun beze změny kódu, pak zvlášť úpravy.
-Sloučit do `main` až po retestu na Windows (ten běží na `main`).
+Sloučeno do `main` 17. 11. 2026 na žádost autora (před retestem na Windows).
 
 - [x] testy pravidel předem: vrstvy `main` → `intro` → `session` → `trial` → `screens` →
       `simulation` → `logic` → `config`, `display` jen pro `main`; DPI a ztišení logování
@@ -227,7 +227,8 @@ Sloučit do `main` až po retestu na Windows (ten běží na `main`).
 - [x] úpravy: `main()` po fázích, `run_set` rozdělený na starty, vybavení a zápis
 - [x] simulace se seedem 4242 (celá, zkrácená, s Escapem) shodná s výchozím otiskem
       (data i obrázky pixel po pixelu), recenze, dokumentace
-- [ ] (ručně) Mac: zkrácené sezení do konce, V a K na nastavení, Escape uprostřed bloku
+- [x] (ručně) Mac: sezení s testovacím kolem a ostrými starty, V a K na nastavení, Escape
+      v 1. bloku (17. 11. 2026, bez vypadlých snímků); konec sezení ověřen simulací
 
 ## Krok 10: Pilot
 
@@ -344,3 +345,5 @@ Sloučit do `main` až po retestu na Windows (ten běží na `main`).
   syntaxe (záměrně změněné jen `main` a `run_set`). Simulace se seedem 4242 (celá, zkrácená,
   s Escapem) shodné s výchozím otiskem v datech, meta i obrázcích; liší se jen jednotlivé
   vypadlé snímky oběma směry (zatížení počítače). Test vrstev pokrývá každý soubor s kódem.
+- 2026-11-17: refaktorizace 2 hotová: ruční test na Macu v pořádku, sloučeno do `main`
+  a pushnuto na žádost autora; retest na Windows tak poběží už na novém rozdělení souborů.
