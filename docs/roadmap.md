@@ -221,11 +221,11 @@ Sloučit do `main` až po retestu na Windows (ten běží na `main`).
 - [x] testy pravidel předem: vrstvy `main` → `intro` → `session` → `trial` → `screens` →
       `simulation` → `logic` → `config`, `display` jen pro `main`; DPI a ztišení logování
       před importem všech souborů s oknem
-- [ ] přesun beze změny kódu: `display.py` (okno, klávesnice, frekvence), `trial.py` (lampy,
+- [x] přesun beze změny kódu: `display.py` (okno, klávesnice, frekvence), `trial.py` (lampy,
       vlajka, start, pauza), `session.py` (průběh sezení), `intro.py` (nick, nastavení,
       kalibrace, založení dat); každá funkce ověřena stromem syntaxe proti původní
-- [ ] úpravy: `main()` po fázích, `run_set` rozdělený na starty a zápis
-- [ ] simulace se seedem 4242 (celá, zkrácená, s Escapem) shodná s výchozím otiskem
+- [x] úpravy: `main()` po fázích, `run_set` rozdělený na starty, vybavení a zápis
+- [x] simulace se seedem 4242 (celá, zkrácená, s Escapem) shodná s výchozím otiskem
       (data i obrázky pixel po pixelu), recenze, dokumentace
 - [ ] (ručně) Mac: zkrácené sezení do konce, V a K na nastavení, Escape uprostřed bloku
 
@@ -338,3 +338,9 @@ Sloučit do `main` až po retestu na Windows (ten běží na `main`).
   spuštění neptá. Klávesy V a K na obrazovce nastavení nejsou moc nápadné (autor je napoprvé
   nenašel); `Cmd+Shift+B` spouští celé sezení, zkrácený test je přes Tasks: Run Task.
   Zbývá retest na Windows (po sloučení do `main`).
+- 2026-11-17: refaktorizace 2 (větev `refaktor-main`, do `main` až po retestu na Windows):
+  `main.py` z 893 na asi 330 řádků, nové `display.py`, `trial.py`, `session.py`, `intro.py`;
+  `main()` má 15 řádků po fázích. Přesun skriptem po znacích, 31 z 33 definic ověřeno stromem
+  syntaxe (záměrně změněné jen `main` a `run_set`). Simulace se seedem 4242 (celá, zkrácená,
+  s Escapem) shodné s výchozím otiskem v datech, meta i obrázcích; liší se jen jednotlivé
+  vypadlé snímky oběma směry (zatížení počítače). Test vrstev pokrývá každý soubor s kódem.
