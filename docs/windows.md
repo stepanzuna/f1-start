@@ -4,9 +4,18 @@ Cíl: ověřit, že experiment na Windows běží přes celou obrazovku, s přes
 stejně velkými podněty jako na Macu. Potřebujete asi 30 minut, počítač s Windows, pravítko,
 platební kartu (nebo jinou kartu stejné velikosti, např. průkaz) a připojení k internetu.
 
-Když už projekt na počítači je z dřívějšího testu, stačí ho aktualizovat: v PowerShellu
-`cd ~\f1-start`, `git pull`, `uv sync` a pokračovat bodem 3. (`git pull` stáhne jen to, co je
-na GitHubu ve větvi `main`.)
+**Opakovaný test (projekt už na počítači je):** stačí ho aktualizovat a pokračovat bodem 3.
+V PowerShellu:
+
+```powershell
+cd ~\f1-start
+git pull
+uv sync
+uv run pytest
+```
+
+Na konci má být „passed“ bez „failed“. V bodech 4–6 pak místo nicku `test_win` použijte
+`test_win2`, aby se nová data nepletla se starými z prvního testu.
 
 ## 1. Nastavení Windows (před testem i před každým měřením)
 
@@ -79,10 +88,11 @@ Má skončit „OK“. Výpis si uložte (bod 6).
 
 ## 6. Co poslat zpět
 
-Výsledky nemají osobní údaje (nick `test_win`), takže jdou přes GitHub:
+Výsledky nemají osobní údaje (nick `test_win`), takže jdou přes GitHub. U opakovaného testu
+nahraďte v příkazech `test_win_*` za `test_win2_*`:
 
 ```powershell
-mkdir docs\diag
+mkdir docs\diag   # když už složka existuje, chybová hláška nevadí
 copy data\test\test_win_*.csv docs\diag\
 copy data\test\test_win_*_meta.json docs\diag\
 copy data\test\test_win_*_log.txt docs\diag\
