@@ -145,6 +145,7 @@ from screens import (  # noqa: E402
     set_text,
     show_digits,
     show_message,
+    window_size_pix,
 )
 
 
@@ -671,11 +672,11 @@ def calibrate(
 ) -> Calibration:
     """Kalibrační obrazovka pro tuto velikost okna.
 
-    Začíná na dosavadní kalibraci, bez ní na odhadu z výšky okna. Beze změny hodnoty
-    zůstane dosavadní kalibrace i s datem (recalibrated).
+    Začíná na dosavadní kalibraci, bez ní na odhadu z viditelné výšky okna. Beze změny
+    hodnoty zůstane dosavadní kalibrace i s datem (recalibrated).
     """
     if previous is None:
-        start = provisional_px_per_cm(window_size[1])
+        start = provisional_px_per_cm(window_size_pix(win)[1])
     else:
         start = previous.px_per_cm
     measured = ask_calibration(win, kb, start)

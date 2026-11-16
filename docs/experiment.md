@@ -47,13 +47,13 @@ Po každém bloku: hodnocení vnímané námahy na Paasově škále 1–9 a pauz
 - Generování: náhodně 0–9 **bez opakování** v rámci sady, nula smí být první. Číslice se
   generují předem v plánu sezení, stejný seed = stejné číslice.
 - Zobrazení: všechny číslice najednou uprostřed obrazovky, oddělené mezerou („4 7 1 9 0 3“),
-  bílé písmo, výška 0,8 cm.
+  bílé písmo, výška 1,6 cm.
 - Vybavení: bez časového limitu. Přijímá jen číslice 0–9, nejvýš tolik, kolik jich bylo
   zobrazeno, Backspace maže. Enter potvrdí i kratší odpověď.
 - `recall_correct = True` jen při přesné shodě celé sekvence včetně pořadí.
 - Psaní číslic (krok 6): horní řada, numerická klávesnice i česká horní řada bez Shiftu
   („+ěščřžýáíé“ = 1234567890). Na obrazovce vybavení je výzva ve zvoleném jazyce a napsané
-  číslice velikostí 0,8 cm, oddělené mezerou.
+  číslice velikostí 1,6 cm, oddělené mezerou.
 - Číslice jsou v plánu v samostatném slovníku podle (blok, pořadí sady); `Start` se nemění.
 - Zpětná vazba k vybavení: v ostré části žádná (stejné ve všech podmínkách), v testovacím kole
   „Správně“ nebo „Správně bylo: 4 7“.
@@ -104,8 +104,8 @@ Pořadí vyhodnocení stisku v okně odpovědi: `rt < 0` → `jump_start`; no-go
 | `omission` | „Bez reakce“ | “No reaction” |
 
 Hláška se zobrazí ve zvoleném jazyce po celou pauzu (`REST_INTERVAL`) nad zhasnutými lampami:
-střed na y = 0,6 cm, výška písma 0,6 cm, bílá (krok 5, 13. 11. 2026; lampy sahají do
-y = −0,5 cm, mezera asi 0,8 cm). Text se nastaví jednou před pauzou, mimo měřený start.
+střed na y = 1,2 cm, výška písma 1,2 cm, bílá (krok 5, 13. 11. 2026; lampy sahají do
+y = −1,0 cm, mezera asi 1,6 cm). Text se nastaví jednou před pauzou, mimo měřený start.
 
 ## Úvodní obrazovka a nick
 
@@ -403,13 +403,19 @@ Anglicky:
 
 ## Kalibrace velikosti (krok 2k, rozhodnuto 16. 11. 2026)
 
-Důvod: první test na Windows (16. 11. 2026, displej 1920 × 1080 s měřítkem 125 %) ukázal
-podněty asi 2,2× větší než na Macu (vlajka 11 × 7 cm místo 5 × 3 cm). Pixely mají na každém
-displeji jinou fyzickou velikost a Windows obraz navíc roztahoval podle měřítka zobrazení.
+Důvod: pixely mají na každém displeji jinou fyzickou velikost a Windows obraz navíc roztahuje
+podle měřítka zobrazení. První test na Windows (16. 11. 2026, 1920 × 1080, měřítko 125 %)
+naměřil vlajku 11 × 7 cm, na MacBooku má 10 × 6 cm. Rozdíl tu je jen asi 10 %, na jiném displeji
+(menší notebook, externí monitor) by byl větší. Původní odhad „2,2× větší“ byl chybný:
+vycházel z předpokladu, že pixel PsychoPy je na Retině fyzický pixel (viz níže).
 
 - **Velikosti podnětů a textů jsou v cm** (`config.py`, tabulka Parametry). Převádějí se
   na pixely podle kalibrace (`px_per_cm`). Hodnoty v cm jsou dřívější pixely na MacBooku Pro 14"
-  (254 ppi = 100 px/cm), na Macu se tak velikost nezměnila.
+  děleno 50, na Macu se tak velikost nezměnila. Na Retině je pixel PsychoPy (`units="pix"`)
+  bod displeje, tedy 2 × 2 fyzické pixely (254 ppi / 2 = 50 px/cm), přestože `win.size` hlásí
+  fyzické pixely (3024 × 1964). Ověřeno 16. 11. 2026: obdélník 100 pix zabírá 200 fyzických
+  pixelů a kalibrace kartou dala 50,35 px/cm. Zalamování textu proto počítá s viditelnou
+  šířkou okna (`win.size` / 2 na Retině).
 - **Windows:** program před prvním oknem zapne DPI awareness (`SetProcessDpiAwareness`,
   per-monitor). Okno pak má nativní rozlišení displeje bez roztažení obrazu, což má zlepšit
   i ostrost a časování. Výsledek se ukládá do meta (`dpi_aware`); když se nepodaří,
@@ -426,16 +432,16 @@ displeji jinou fyzickou velikost a Windows obraz navíc roztahoval podle měří
   Před první kalibrací se velikost písma a výchozí šířka obdélníku odhadnou z obvyklé výšky
   displeje notebooku (19,6 cm), na běžném notebooku tak stačí pár stisků.
 - **Ověření pravítkem:** `V` na obrazovce nastavení ukáže vlajku a rozsvícené lampy v kalibrované
-  velikosti (vlajka 5,0 × 3,0 cm, průměr světla 0,8 cm, středy světel po 1,2 cm), Enter = zpět.
+  velikosti (vlajka 10,0 × 6,0 cm, průměr světla 1,6 cm, středy světel po 2,4 cm), Enter = zpět.
 - **Soubor počítače `data/machine.json`:** anonymní identifikátor počítače (8 náhodných
   šestnáctkových znaků, vznikne při prvním spuštění; nic o počítači neprozrazuje, na rozdíl
   od jména počítače se nemění podle sítě) a poslední kalibrace (px/cm, velikost okna, čas).
   Zapíše se spolu se založením sezení po obrazovce nastavení, takže před koncem nastavení
   se do `data/` pořád nic nezapíše. Kalibrace z přerušeného nastavení (Escape) se neuloží.
   Složka `data/` se mezi počítači nekopíruje: nový počítač = nový identifikátor a kalibrace.
-- **Simulace** nekalibruje: pevných 100 px/cm, identifikátor `00000000` a `calibrated_at = null`,
+- **Simulace** nekalibruje: pevných 50 px/cm (jako MacBook), identifikátor `00000000` a `calibrated_at = null`,
   soubor počítače nečte ani nemění. Na obrazovce nastavení stiskne `K` (šipky tam a zpět, Enter: zůstane
-  100 px/cm) a `V`, takže projde i kód kalibrační obrazovky.
+  50 px/cm) a `V`, takže projde i kód kalibrační obrazovky.
 
 ## Data
 
@@ -554,8 +560,8 @@ Rozhodnuto 14. 11. 2026 (autor):
 | `RESPONSE_WINDOW` | 1,5 s |
 | `REST_INTERVAL` | 1,0 s, během něj zpětná vazba |
 | `ANTICIPATION_THRESHOLD` | 0,1 s |
-| vlajka | 5,0 × 3,0 cm, střed (0; 1,8 cm); lampy poloměr 0,4 cm na y = −0,9 cm, rozestup 1,2 cm (do 16. 11. 2026 v px: 500 × 300, (0, 180), 40, −90, 120; na MacBooku Pro 14" totéž) |
-| texty | výška písma 0,4 cm, zpětná vazba 0,6 cm, číslice 0,8 cm; řádky na y = 1,2 / 0 / −1,2 cm, zpětná vazba 0,6 cm |
+| vlajka | 10,0 × 6,0 cm, střed (0; 3,6 cm); lampy poloměr 0,8 cm na y = −1,8 cm, rozestup 2,4 cm (do 16. 11. 2026 v px: 500 × 300, (0, 180), 40, −90, 120; na MacBooku Pro 14" totéž) |
+| texty | výška písma 0,8 cm, zpětná vazba 1,2 cm, číslice 1,6 cm; řádky na y = 2,4 / 0 / −2,4 cm, zpětná vazba 1,2 cm |
 | kalibrace | karta ID-1 85,60 × 53,98 mm, věrohodný rozsah 20–200 px/cm |
 | zpětná vazba | reakční čas v ms a hlášky o chybách, stejná ve všech podmínkách |
 | testovací kolo | 4 starty bez číslic + 1 sada s 2 číslicemi |

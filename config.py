@@ -15,14 +15,15 @@ FLAG_COLOR = "#EF9F27"
 
 # Rozložení obrazovky v centimetrech, střed obrazovky je (0, 0). Na pixely se převádí podle
 # kalibrace počítače, takže podněty mají na každém displeji stejnou fyzickou velikost
-# (krok 2k, 16. 11. 2026). Hodnoty = dřívější pixely na MacBooku Pro 14" (254 ppi = 100 px/cm).
+# (krok 2k, 16. 11. 2026). Hodnoty = dřívější pixely na MacBooku Pro 14": na Retině je pixel
+# PsychoPy bod displeje (2 × 2 fyzické pixely), tedy 50 px/cm (254 ppi / 2).
 N_LAMPS = 5
-LAMP_RADIUS = 0.4
-LAMP_SPACING = 1.2
-LAMP_Y = -0.9
-FLAG_WIDTH = 5.0
-FLAG_HEIGHT = 3.0
-FLAG_POS = (0, 1.8)
+LAMP_RADIUS = 0.8
+LAMP_SPACING = 2.4
+LAMP_Y = -1.8
+FLAG_WIDTH = 10.0
+FLAG_HEIGHT = 6.0
+FLAG_POS = (0, 3.6)
 
 # Kalibrace velikosti (docs/experiment.md, „Kalibrace velikosti“): experimentátor šipkami
 # srovná šířku obdélníku s kartou formátu ID-1 (platební karta, průkaz), 85,60 × 53,98 mm.
@@ -31,17 +32,19 @@ CARD_HEIGHT_CM = 5.398
 CARD_COLOR = "#555555"
 MM_PER_CM = 10
 CALIBRATION_KEYS = {"left": -1, "right": 1, "down": -10, "up": 10}  # změna šířky v px
-PX_PER_CM_MIN = (
-    20.0  # věrohodný rozsah: monitor 24" Full HD asi 36, MacBook Pro 14" 100
-)
+# Věrohodný rozsah kalibrace: monitor 24" Full HD asi 36, MacBook Pro 14" 50
+PX_PER_CM_MIN = 20.0
 PX_PER_CM_MAX = 200.0
 PX_PER_CM_DECIMALS = 3
 # Před první kalibrací: odhad výšky displeje notebooku (MacBook Pro 14" 19,6 cm, 15,6" 16:9
 # asi 19,4 cm). Určí velikost písma na kalibrační obrazovce a výchozí šířku obdélníku.
 ASSUMED_SCREEN_HEIGHT_CM = 19.6
-CALIBRATION_TEXT_Y = 4.5  # cm, návod nad obdélníkem
-CALIBRATION_VALUE_Y = -4.0  # cm, naměřená hodnota pod obdélníkem
-SIZE_CHECK_TEXT_Y = -3.0  # cm, text pod lampami na obrazovce kontroly velikosti
+CALIBRATION_TEXT_Y = 6.0  # cm, návod nad obdélníkem
+CALIBRATION_VALUE_Y = -4.5  # cm, naměřená hodnota pod obdélníkem
+SIZE_CHECK_TEXT_Y = -4.5  # cm, text pod lampami na obrazovce kontroly velikosti
+# PsychoPy na Retině: 1 pix = 2 × 2 fyzické pixely, win.size ale hlásí fyzické pixely
+# (retinaScale v psychopy/visual/window.py; ověřeno 16. 11. 2026 obdélníkem 100 pix = 200 px)
+RETINA_PIX_SCALE = 2
 # Windows: proces „per-monitor DPI aware“ (PROCESS_PER_MONITOR_DPI_AWARE), okno v nativních
 # pixelech bez roztažení podle měřítka zobrazení (125 % apod.)
 WINDOWS_DPI_AWARENESS = 2
@@ -68,7 +71,7 @@ N_BLOCKS = 4
 STARTS_PER_SET = 3
 DIGITS_PER_LOAD = {"none": 0, "low": 2, "high": 6}
 DIGITS = "0123456789"
-DIGITS_HEIGHT = 0.8  # cm
+DIGITS_HEIGHT = 1.6  # cm
 # Česká klávesnice: horní řada bez Shiftu píše tyto znaky; při vybavení se berou jako číslice
 # (i velká písmena při Caps Lock). „+“ je i plus na numerické klávesnici (iohub obojí hlásí
 # jako num_add), překlep tam zapíše 1; účastník ho vidí a může smazat.
@@ -141,15 +144,17 @@ LANGUAGES = ("cs", "en")
 DEFAULT_LANGUAGE = "cs"
 LANGUAGE_NAMES = {"cs": "čeština", "en": "English"}
 # Texty: výška písma a pozice řádků v cm (převod na pixely podle kalibrace)
-TEXT_HEIGHT = 0.4
-# Zpětná vazba v pauze: nad lampami (lampy sahají do y = -0,5, vlajka v pauze není)
-FEEDBACK_Y = 0.6
-FEEDBACK_HEIGHT = 0.6
-PROMPT_Y = 1.2  # pozice řádků na obrazovce s nickem a s vybavením
+TEXT_HEIGHT = 0.8
+# Zpětná vazba v pauze: nad lampami (lampy sahají do y = -1,0, vlajka v pauze není)
+FEEDBACK_Y = 1.2
+FEEDBACK_HEIGHT = 1.2
+PROMPT_Y = 2.4  # pozice řádků na obrazovce s nickem a s vybavením
 INPUT_Y = 0.0
-MESSAGE_Y = -1.2
+MESSAGE_Y = -2.4
 CURSOR = "_"
-TEXT_WRAP_SHARE = 0.8  # podíl šířky okna, na který se text zalomí
+# Podíl viditelné šířky okna, na který se text zalomí. Nejdelší schválený řádek má na Macu
+# 91 % šířky, takže se nezalomí; delší řádek (nastavení s dlouhým nickem) nepřeteče přes okraj.
+TEXT_WRAP_SHARE = 0.95
 TEXT_COLOR = "white"
 WARNING_COLOR = "#EF9F27"
 NICK_PROMPT = (
@@ -166,11 +171,12 @@ FOLDER_NOTE = {
     "sim": "data/sim/ (simulace)",
 }
 SETTINGS_SCREEN = (
-    "Účastník: {nick}    počítač: {machine} ({machine_id})    data: {folder}\n\n"
+    "Účastník: {nick}    data: {folder}\n\n"
     "Pořadí bloků: {block_order}    ({order_note})\n"
     "A = ABBA, B = BAAB\n\n"
     "Jazyk účastníka: {language_name}\n"
     "C = čeština, E = English\n\n"
+    "Počítač: {machine} ({machine_id})\n"
     "Velikost podnětů: {calibration}\n"
     "K = kalibrovat znovu, V = ověřit pravítkem\n\n"
     "Enter = začít sezení"
@@ -394,15 +400,16 @@ SIM_INTRO_KEYS = (
     *("v", "return", "e", "return"),
 )
 # Simulace uloží obrázek první pauzy po každém typu výsledku (obsah okna PsychoPy,
-# ne obrazovky). Na Retině je obrázek 2× zvětšený výřez středu okna (omezení
-# getMovieFrame), dlouhý text proto vypadá useknutý; vzhled ověřuje ruční test.
+# ne obrazovky). Okno simulace je na Retině v pix malé (pix = bod displeje), obrázek proto
+# ukáže jen střed (vlajka se nevejde) a text se zalomí víc než na celé obrazovce;
+# vzhled ověřuje ruční test.
 SIM_SCREENS_SUFFIX = "_screens"
 # Vybavení číslic v simulaci se střídá: správně, špatná poslední číslice, překlep opravený
 # Backspacem, kratší odpověď (jen první číslice).
 SIM_RECALL_CYCLE = ("correct", "wrong", "corrected", "short")
 SIM_DIR_NAME = "sim"
 # Simulace nekalibruje: pevná velikost (jako MacBook Pro 14") a pevný identifikátor počítače.
-SIM_PX_PER_CM = 100.0
+SIM_PX_PER_CM = 50.0
 SIM_MACHINE_ID = "00000000"
 # Simulace běží v menším okně uprostřed (jen pro ni, ostrý běh ho nedostane), aby nechala
 # volnou obrazovku. Okno je aspoň tak velké, aby se vešly lampy i vlajka s okrajem.

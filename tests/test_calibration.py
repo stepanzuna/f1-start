@@ -53,13 +53,13 @@ from simulation import sim_machine_info
 
 SAMPLE_TIME = datetime(2026, 11, 16, 17, 20, tzinfo=timezone(timedelta(hours=1)))
 WINDOW = (3024, 1964)
-CALIBRATION = Calibration(99.766, WINDOW, SAMPLE_TIME.isoformat(timespec="seconds"))
+CALIBRATION = Calibration(50.35, WINDOW, SAMPLE_TIME.isoformat(timespec="seconds"))
 
 
 def test_card_width_matches_macbook() -> None:
-    """MacBook Pro 14" (100 px/cm): karta 85,6 mm je široká 856 px a naopak."""
-    assert card_width_px(100.0) == 856
-    assert px_per_cm_from_card(856) == 100.0
+    """MacBook Pro 14" (50 px/cm, pixel PsychoPy = bod): karta 85,6 mm má 428 px a naopak."""
+    assert card_width_px(50.0) == 428
+    assert px_per_cm_from_card(428) == 50.0
 
 
 def test_card_width_roundtrip() -> None:
@@ -106,14 +106,14 @@ def test_plausible_px_per_cm(value: object, plausible: bool) -> None:
 
 
 def test_provisional_estimate_is_close_on_macbook() -> None:
-    """Odhad před první kalibrací vyjde na MacBooku skoro přesně (výška 19,6 cm)."""
-    assert provisional_px_per_cm(1964) == pytest.approx(1964 / ASSUMED_SCREEN_HEIGHT_CM)
-    assert abs(card_width_px(provisional_px_per_cm(1964)) - 856) <= 2
+    """Odhad před první kalibrací vyjde na MacBooku skoro přesně (982 pix, výška 19,6 cm)."""
+    assert provisional_px_per_cm(982) == pytest.approx(982 / ASSUMED_SCREEN_HEIGHT_CM)
+    assert abs(card_width_px(provisional_px_per_cm(982)) - 428) <= 2
 
 
 def test_calibration_value_text_warns_outside_range() -> None:
     """Pod obdélníkem je hodnota; mimo věrohodný rozsah i upozornění."""
-    assert calibration_value_text(856, True) == "Šířka obdélníku 856 px = 100,0 px/cm"
+    assert calibration_value_text(428, True) == "Šířka obdélníku 428 px = 50,0 px/cm"
     warning = CALIBRATION_INVALID.format(
         minimum=round(PX_PER_CM_MIN), maximum=round(PX_PER_CM_MAX)
     )
@@ -122,12 +122,12 @@ def test_calibration_value_text_warns_outside_range() -> None:
 
 def test_calibration_value_text_before_adjusting() -> None:
     """Dokud se šířka neupraví šipkami, řádek řekne, proč Enter nejde."""
-    assert calibration_value_text(856, False).endswith(CALIBRATION_ADJUST_FIRST)
+    assert calibration_value_text(428, False).endswith(CALIBRATION_ADJUST_FIRST)
 
 
 @pytest.mark.parametrize(
     ("width", "adjusted", "accepted"),
-    [(856, True, True), (856, False, False), (100, True, False), (2000, True, False)],
+    [(428, True, True), (428, False, False), (100, True, False), (2000, True, False)],
 )
 def test_calibration_accepts_enter(width: int, adjusted: bool, accepted: bool) -> None:
     """Enter uloží jen po úpravě šipkami (neměřený odhad nejde odklepnout) a v rozsahu."""
@@ -142,13 +142,13 @@ def test_calibration_screen_text_has_card_size() -> None:
 def test_unchanged_recalibration_keeps_date() -> None:
     """K a Enter beze změny nechá dosavadní kalibraci i s datem (simulace zůstane bez data)."""
     later = "2026-11-20T09:00:00+01:00"
-    assert recalibrated(CALIBRATION, 99.766, WINDOW, later) == CALIBRATION
+    assert recalibrated(CALIBRATION, 50.35, WINDOW, later) == CALIBRATION
     simulated = Calibration(SIM_PX_PER_CM, (605, 393), None)
     assert recalibrated(simulated, SIM_PX_PER_CM, (605, 393), later) == simulated
 
 
 @pytest.mark.parametrize(
-    ("previous", "px_per_cm"), [(None, 99.766), (CALIBRATION, 100.0)]
+    ("previous", "px_per_cm"), [(None, 50.35), (CALIBRATION, 50.0)]
 )
 def test_new_calibration_gets_date(
     previous: Calibration | None, px_per_cm: float
@@ -162,8 +162,8 @@ def test_new_calibration_gets_date(
 
 def test_calibration_note() -> None:
     """Obrazovka nastavení ukáže hodnotu s desetinnou čárkou a datum kalibrace."""
-    assert calibration_note(CALIBRATION) == "99,8 px/cm, kalibrace 16. 11. 2026"
-    assert "simulace" in calibration_note(Calibration(100.0, WINDOW, None))
+    assert calibration_note(CALIBRATION) == "50,4 px/cm, kalibrace 16. 11. 2026"
+    assert "simulace" in calibration_note(Calibration(50.0, WINDOW, None))
 
 
 def test_cm_text() -> None:
@@ -175,9 +175,9 @@ def test_cm_text() -> None:
 def test_size_check_text_has_stimulus_sizes() -> None:
     """Text ověření pravítkem uvádí rozměry vlajky a lamp v cm."""
     text = size_check_text()
-    assert "5,0 × 3,0 cm" in text
-    assert "průměr světla 0,8 cm" in text
-    assert "po 1,2 cm" in text
+    assert "10,0 × 6,0 cm" in text
+    assert "průměr světla 1,6 cm" in text
+    assert "po 2,4 cm" in text
 
 
 def test_new_machine_id() -> None:
@@ -270,8 +270,8 @@ def test_settings_text_shows_machine_and_calibration() -> None:
     """Nastavení ukáže identifikátor počítače, kalibraci a klávesy K a V."""
     info = SettingsInfo("anna", "mac", "a1b2c3d4", "", 2, CALIBRATION)
     text = settings_text(info, "ABBA", "en")
-    assert "počítač: mac (a1b2c3d4)" in text
-    assert "99,8 px/cm, kalibrace 16. 11. 2026" in text
+    assert "Počítač: mac (a1b2c3d4)" in text
+    assert "50,4 px/cm, kalibrace 16. 11. 2026" in text
     assert "K = kalibrovat znovu, V = ověřit pravítkem" in text
     assert "automaticky podle 2 dokončených sezení" in text
     assert "English" in text

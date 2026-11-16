@@ -23,6 +23,7 @@ from config import (
     MESSAGE_Y,
     NICK_PROMPT,
     PROMPT_Y,
+    RETINA_PIX_SCALE,
     TEXT_COLOR,
     TEXT_HEIGHT,
     TEXT_WRAP_SHARE,
@@ -122,6 +123,15 @@ def quit_if_escape(keys: list[AnyKeyPress], win: visual.Window) -> None:
         core.quit()
 
 
+def window_size_pix(win: visual.Window) -> tuple[float, float]:
+    """Viditelná velikost okna v jednotkách pix.
+
+    Na Retině je pix bod displeje (2 × 2 fyzické pixely), win.size ale hlásí fyzické pixely.
+    """
+    scale = RETINA_PIX_SCALE if win.useRetina else 1
+    return (win.size[0] / scale, win.size[1] / scale)
+
+
 def make_text(
     win: visual.Window,
     px_per_cm: float,
@@ -129,7 +139,7 @@ def make_text(
     color: str = TEXT_COLOR,
     height: float = TEXT_HEIGHT,
 ) -> visual.TextStim:
-    """Vytvoří prázdný text pro obrazovky s textem, zalomený podle šířky okna.
+    """Vytvoří prázdný text pro obrazovky s textem, zalomený podle viditelné šířky okna.
 
     Pozice y a výška písma jsou v cm, převedou se podle kalibrace (px_per_cm).
     """
@@ -138,7 +148,7 @@ def make_text(
         text="",
         pos=(0, y * px_per_cm),
         height=height * px_per_cm,
-        wrapWidth=win.size[0] * TEXT_WRAP_SHARE,
+        wrapWidth=window_size_pix(win)[0] * TEXT_WRAP_SHARE,
         color=color,
         units="pix",
     )

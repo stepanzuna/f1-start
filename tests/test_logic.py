@@ -94,7 +94,7 @@ def sample_meta() -> dict[str, object]:
         short=False,
         simulated=False,
         machine_id="a1b2c3d4",
-        calibration=Calibration(100.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
+        calibration=Calibration(50.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
         dpi_aware=None,
     )
 
@@ -192,7 +192,7 @@ def test_meta_with_numpy_values_is_json(tmp_path: Path) -> None:
         short=False,
         simulated=False,
         machine_id="a1b2c3d4",
-        calibration=Calibration(100.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
+        calibration=Calibration(50.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
         dpi_aware=None,
     )
     write_json(tmp_path / "m.json", meta)

@@ -77,7 +77,7 @@ uv run main.py --short    # zkrácené sezení pro test (nick musí začínat �
 - **Escape** kdykoli ukončí program. Už zapsaná data zůstanou, sezení se označí jako přerušené.
 
 Průběh sezení: kalibrace velikosti (jen poprvé na počítači) → nick účastníka → pořadí bloků
-a jazyk (zde `K` = kalibrovat znovu, `V` = ověřit velikost vlajky pravítkem, má 5 × 3 cm)
+a jazyk (zde `K` = kalibrovat znovu, `V` = ověřit velikost vlajky pravítkem, má 10 × 6 cm)
 → instrukce → testovací kolo (lze opakovat) → 4 bloky po 24 startech, po každém hodnocení
 úsilí (Paasova škála) a pauza → zhodnocení.
 

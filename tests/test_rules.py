@@ -27,7 +27,7 @@ SINGLE_PLATFORM_MODULES = {"AppKit", "Foundation", "objc", "win32api", "ctypes.w
 
 # Schválené parametry z docs/experiment.md (Parametry, rozhodnuto 12. 11. 2026).
 # Velikosti podnětů v cm od 16. 11. 2026 (krok 2k, schváleno autorem): dřívější pixely
-# na MacBooku Pro 14" děleno 100 px/cm.
+# na MacBooku Pro 14" děleno 50 px/cm (pixel PsychoPy na Retině = bod displeje).
 APPROVED_PARAMETERS = {
     "LIGHT_INTERVAL": 1.0,
     "FOREPERIODS": [0.5, 1.25, 2.0, 2.75],
@@ -39,24 +39,24 @@ APPROVED_PARAMETERS = {
     "STARTS_PER_SET": 3,
     "DIGITS_PER_LOAD": {"none": 0, "low": 2, "high": 6},
     "N_LAMPS": 5,
-    "LAMP_RADIUS": 0.4,
-    "LAMP_SPACING": 1.2,
-    "LAMP_Y": -0.9,
-    "FLAG_WIDTH": 5.0,
-    "FLAG_HEIGHT": 3.0,
-    "FLAG_POS": (0, 1.8),
+    "LAMP_RADIUS": 0.8,
+    "LAMP_SPACING": 2.4,
+    "LAMP_Y": -1.8,
+    "FLAG_WIDTH": 10.0,
+    "FLAG_HEIGHT": 6.0,
+    "FLAG_POS": (0, 3.6),
     "CARD_WIDTH_CM": 8.56,  # karta ID-1 (ISO/IEC 7810), 85,60 × 53,98 mm
     "CARD_HEIGHT_CM": 5.398,
     "PX_PER_CM_MIN": 20.0,
     "PX_PER_CM_MAX": 200.0,
     # Texty v cm (krok 2k): výška písma a pozice řádků
-    "TEXT_HEIGHT": 0.4,
-    "FEEDBACK_HEIGHT": 0.6,
-    "DIGITS_HEIGHT": 0.8,
-    "FEEDBACK_Y": 0.6,
-    "PROMPT_Y": 1.2,
+    "TEXT_HEIGHT": 0.8,
+    "FEEDBACK_HEIGHT": 1.2,
+    "DIGITS_HEIGHT": 1.6,
+    "FEEDBACK_Y": 1.2,
+    "PROMPT_Y": 2.4,
     "INPUT_Y": 0.0,
-    "MESSAGE_Y": -1.2,
+    "MESSAGE_Y": -2.4,
     "EXPECTED_FRAME_RATE": 60,
     "FRAME_RATE_TOLERANCE": 1.0,
     "GO_PER_FOREPERIOD": 9,

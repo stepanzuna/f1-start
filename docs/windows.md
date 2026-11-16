@@ -61,7 +61,7 @@ uv run main.py --short
    nahoru/dolů o 10 px). Enter uloží (funguje až po první šipce).
 2. Nick `test_win`, Enter.
 3. Na obrazovce nastavení stiskněte **V**: ukáže se vlajka a světla. **Pravítkem změřte** šířku
-   a výšku vlajky (má mít 5,0 × 3,0 cm) a průměr jednoho světla (0,8 cm). Enter = zpět.
+   a výšku vlajky (má mít 10,0 × 6,0 cm) a průměr jednoho světla (1,6 cm). Enter = zpět.
    Když vlajka nesedí o víc než 2 mm, stiskněte **K**, kalibraci zopakujte a změřte znovu.
 4. Čeština (C), Enter.
 5. Sledujte: otevřelo se okno **přes celou obrazovku a v popředí**? Jsou texty a světla **ostré**

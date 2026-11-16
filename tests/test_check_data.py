@@ -104,7 +104,7 @@ def write_session(tmp_path: Path, aborted: bool = False) -> Path:
         short=False,
         simulated=False,
         machine_id="a1b2c3d4",
-        calibration=Calibration(100.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
+        calibration=Calibration(50.0, (3024, 1964), "2026-11-16T10:00:00+01:00"),
         dpi_aware=None,
     )
     if not aborted:
