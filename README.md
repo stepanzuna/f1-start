@@ -105,9 +105,13 @@ uv run main.py --sim --short --seed=4242   # rychlá a opakovatelná simulace
 Simulace „mačká“ klávesy podle scénáře a `check_data.py` pak ověří, že program vyhodnotil
 a uložil přesně to, co scénář předpověděl.
 
-Soubory: `config.py` (všechny konstanty a texty), `logic.py` (čistá logika bez PsychoPy),
-`simulation.py` (režim simulace), `screens.py` (obrazovky s textem), `main.py` (okno, start,
-průběh sezení), `check_data.py` (kontrola dat), `tests/`.
+Soubory:
+- bez PsychoPy (testují se pytestem): `config.py` (všechny konstanty a texty), `logic.py`
+  (čistá logika), `simulation.py` (režim simulace), `check_data.py` (kontrola dat);
+- s oknem PsychoPy: `main.py` (sezení po fázích), `intro.py` (kalibrace, nick, nastavení),
+  `session.py` (sady, testovací kolo, bloky), `trial.py` (jeden start, lampy, vlajka, pauza),
+  `screens.py` (obrazovky s textem), `display.py` (okno, klávesnice, frekvence);
+- `tests/`.
 
 ## Pro AI asistenty a další vývojáře
 
@@ -117,9 +121,9 @@ Pravidla, která v projektu platí (ať pracujete ručně, nebo s AI):
   v `docs/experiment.md` (sekce Parametry) a zamyká je `tests/test_rules.py`. Když tento test
   selže, parametr se změnil bez dohody: neopravujte test, zeptejte se autora.
 - **Nic ze složky `data/` nepatří do gitu** (výsledky účastníků, GDPR).
-- **Vrstvy souborů:** `main` → `screens` → `simulation` → `logic` → `config`. Nižší vrstva
-  neimportuje vyšší; `config.py`, `logic.py` a `simulation.py` neimportují PsychoPy, aby šly
-  testovat bez okna. Hlídá to `tests/test_rules.py`.
+- **Vrstvy souborů:** `main` → `intro` → `session` → `trial` → `screens` → `simulation` →
+  `logic` → `config` (`display` jen pro `main`). Nižší vrstva neimportuje vyšší;
+  `config.py`, `logic.py` a `simulation.py` neimportují PsychoPy, aby šly testovat bez okna. Hlídá to `tests/test_rules.py`.
 - **Časování výhradně ve snímcích** (`frames()` a smyčka `draw → win.flip()`), nikdy
   `time.sleep` ani `core.wait`; klávesnice (iohub) se čte v každém snímku a Escape vždy ukončí.
 - **Před každou změnou a po ní:** `uv run pytest`, `uv run ruff check .` a simulace

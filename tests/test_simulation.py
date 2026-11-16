@@ -38,12 +38,12 @@ KEYS = ["space", "escape"]
 
 
 def frames(seconds: float) -> int:
-    """Převod sekund na snímky stejně jako frames() v main.py."""
+    """Převod sekund na snímky stejně jako frames() v screens.py."""
     return round(seconds * RATE)
 
 
 def drive_start(kb: SimulatedKeyboard, start: Start) -> str:
-    """Volá klávesnici ve stejném pořadí jako run_start v main.py a vrátí výsledek.
+    """Volá klávesnici ve stejném pořadí jako run_start v trial.py a vrátí výsledek.
 
     Známé omezení: pořadí je tu opsané z run_start. Když se run_start změní, tyto testy to
     nepoznají; skutečný run_start ověřuje `uv run main.py --sim` + `check_data.py`.
@@ -55,7 +55,7 @@ def drive_start(kb: SimulatedKeyboard, start: Start) -> str:
             return "jump_start"
     for i in range(frames(RESPONSE_WINDOW)):
         if i == 0:
-            kb.clock.reset()  # v main.py přes win.callOnFlip při prvním flipu
+            kb.clock.reset()  # v trial.py přes win.callOnFlip při prvním flipu
         keys = kb.getKeys(keyList=KEYS)
         if keys:
             return classify_press(keys[0].rt, start.is_nogo)
@@ -63,7 +63,7 @@ def drive_start(kb: SimulatedKeyboard, start: Start) -> str:
 
 
 def drive_pause(kb: SimulatedKeyboard) -> None:
-    """Pauza mezi starty čte jen Escape, stejně jako show_pause v main.py."""
+    """Pauza mezi starty čte jen Escape, stejně jako show_pause v trial.py."""
     for _ in range(frames(REST_INTERVAL)):
         assert kb.getKeys(keyList=["escape"]) == []
 

@@ -1,6 +1,6 @@
 """Jeden F1 start (PsychoPy): lampy semaforu, žlutá vlajka, měřený start a pauza po něm.
 
-Přesunuto z main.py beze změny kódu (refaktorizace 16. 11. 2026). Importuje se až po zapnutí
+Přesunuto z main.py (refaktorizace 16. 11. 2026). Importuje se až po zapnutí
 DPI awareness a ztišení logování v main.py (viz CLAUDE.md, Logování).
 """
 

@@ -145,7 +145,8 @@ class Startup:
 def start_up(options: RunOptions, data_root: Path) -> Startup:
     """Klávesnice, okno a frekvence, seed, počet dokončených sezení a údaje o počítači.
 
-    Klávesnice iohub se spouští před oknem; simulace ji nahradí falešnou klávesnicí.
+    Klávesnice iohub se spouští před oknem; v simulaci se nespouští, místo ní falešná
+    klávesnice podle scénáře.
     """
     simulated = options.simulated
     machine = machine_code(sys.platform)
@@ -165,15 +166,15 @@ def start_up(options: RunOptions, data_root: Path) -> Startup:
         else load_machine_info(data_root / MACHINE_FILE_NAME)
     )
     return Startup(
-        options,
-        display,
-        kb,
-        scenario,
-        seed,
-        machine,
-        completed,
-        machine_info,
-        data_root,
+        options=options,
+        display=display,
+        kb=kb,
+        scenario=scenario,
+        seed=seed,
+        machine=machine,
+        completed=completed,
+        machine_info=machine_info,
+        data_root=data_root,
     )
 
 

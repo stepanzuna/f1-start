@@ -101,8 +101,9 @@ def imported_modules(nodes: list[ast.stmt]) -> set[str]:
 def test_no_psychopy_import(name: str) -> None:
     """config.py, logic.py a check_data.py neimportují PsychoPy (testují se bez okna)."""
     path = ROOT / name
-    if not path.exists():
-        pytest.skip(f"{name} zatím neexistuje")
+    assert path.exists(), (
+        f"{name} chybí (přejmenovaný soubor upravit i v PSYCHOPY_FREE)"
+    )
     modules = imported_modules(list(ast.walk(parse(path))))
     assert not any(module.split(".")[0] == "psychopy" for module in modules)
 
@@ -148,16 +149,21 @@ def test_real_window_mode_is_full_screen() -> None:
 @pytest.mark.parametrize("name", FORBIDDEN_IMPORTS)
 def test_module_layers(name: str) -> None:
     """Modul neimportuje vyšší vrstvu (čistá logika zůstane bez PsychoPy a bez okna)."""
-    if not (ROOT / name).exists():
-        pytest.skip(f"{name} zatím neexistuje")
+    assert (ROOT / name).exists(), f"{name} chybí (upravit i FORBIDDEN_IMPORTS)"
     modules = {
         m.split(".")[0] for m in imported_modules(list(ast.walk(parse(ROOT / name))))
     }
     assert not modules & FORBIDDEN_IMPORTS[name]
 
 
+def test_every_source_file_has_layer() -> None:
+    """Každý soubor s kódem (kromě main.py nahoře) má pravidla vrstev; nový soubor je doplní."""
+    names = {path.name for path in SOURCE_FILES} - {"main.py"}
+    assert names == set(FORBIDDEN_IMPORTS)
+
+
 def test_psychopy_imported_after_quieting_log() -> None:
-    """main.py načte PsychoPy (visual, keyboard, screens) až po ztišení logování konzole."""
+    """main.py načte PsychoPy (visual a soubory s oknem) až po ztišení logování konzole."""
     body = parse(ROOT / "main.py").body
     quiet = next(
         i
@@ -176,7 +182,7 @@ def test_psychopy_imported_after_quieting_log() -> None:
 
 
 def test_dpi_awareness_before_window_imports() -> None:
-    """main.py zapne DPI awareness (Windows) dřív, než načte visual, screens a pyglet.
+    """main.py zapne DPI awareness (Windows) dřív, než načte visual a soubory s oknem.
 
     PsychoPy při importu visual vytvoří skryté okno; DPI awareness musí být nastavená před ním.
     """

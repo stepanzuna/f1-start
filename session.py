@@ -1,6 +1,6 @@
 """Průběh sezení (PsychoPy): sady, testovací kolo, instrukce, Paasova škála a bloky.
 
-Přesunuto z main.py beze změny kódu (refaktorizace 16. 11. 2026). Importuje se až po zapnutí
+Přesunuto z main.py (refaktorizace 16. 11. 2026). Importuje se až po zapnutí
 DPI awareness a ztišení logování v main.py (viz CLAUDE.md, Logování).
 """
 

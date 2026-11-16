@@ -172,7 +172,7 @@ def test_row_phase_main() -> None:
 
 
 def test_meta_with_numpy_values_is_json(tmp_path: Path) -> None:
-    """Hodnoty z PsychoPy (numpy) převedené jako v main.py jdou uložit do JSON."""
+    """Hodnoty z PsychoPy (numpy) převedené jako v display.py jdou uložit do JSON."""
     import numpy as np
 
     size = np.array([3024, 1964])
