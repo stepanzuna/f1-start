@@ -212,6 +212,23 @@ Hotovo když: testovací kolo jde zopakovat a v CSV je odlišené od ostré čá
 
 Hotovo když: celé sezení proběhne od nicku po poděkování bez zásahu do kódu.
 
+## Refaktorizace 2: rozdělení `main.py` (schváleno autorem 16. 11. 2026)
+
+`main.py` měl po kroku 2k 893 řádků (okno, start, průběh sezení, úvod, kalibrace, `main()`).
+Rozdělení do čtyř nových souborů, nejdřív jen přesun beze změny kódu, pak zvlášť úpravy.
+Sloučit do `main` až po retestu na Windows (ten běží na `main`).
+
+- [x] testy pravidel předem: vrstvy `main` → `intro` → `session` → `trial` → `screens` →
+      `simulation` → `logic` → `config`, `display` jen pro `main`; DPI a ztišení logování
+      před importem všech souborů s oknem
+- [ ] přesun beze změny kódu: `display.py` (okno, klávesnice, frekvence), `trial.py` (lampy,
+      vlajka, start, pauza), `session.py` (průběh sezení), `intro.py` (nick, nastavení,
+      kalibrace, založení dat); každá funkce ověřena stromem syntaxe proti původní
+- [ ] úpravy: `main()` po fázích, `run_set` rozdělený na starty a zápis
+- [ ] simulace se seedem 4242 (celá, zkrácená, s Escapem) shodná s výchozím otiskem
+      (data i obrázky pixel po pixelu), recenze, dokumentace
+- [ ] (ručně) Mac: zkrácené sezení do konce, V a K na nastavení, Escape uprostřed bloku
+
 ## Krok 10: Pilot
 
 - [ ] 2–3 lidé, na Macu i na Windows

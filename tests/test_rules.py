@@ -13,14 +13,26 @@ import config
 ROOT = Path(__file__).parent.parent
 SOURCE_FILES = sorted(ROOT.glob("*.py"))
 PSYCHOPY_FREE = ("config.py", "logic.py", "simulation.py", "check_data.py")
-# Kdo smí importovat koho: nižší vrstva nesmí záviset na vyšší (main → screens → simulation
-# → logic → config), aby čistá logika šla testovat bez okna.
+# Kdo smí importovat koho: nižší vrstva nesmí záviset na vyšší (main → intro → session
+# → trial → screens → simulation → logic → config; display jen pro main), aby čistá logika
+# šla testovat bez okna a importy nebyly v kruhu.
+WINDOW_MODULES = {
+    "display",
+    "trial",
+    "session",
+    "intro",
+    "screens",
+}  # načítají okno PsychoPy
 FORBIDDEN_IMPORTS = {
-    "config.py": {"logic", "simulation", "screens", "main"},
-    "logic.py": {"simulation", "screens", "main"},
-    "simulation.py": {"screens", "main"},
-    "screens.py": {"main"},
-    "check_data.py": {"screens", "main"},
+    "config.py": {"logic", "simulation", "main", *WINDOW_MODULES},
+    "logic.py": {"simulation", "main", *WINDOW_MODULES},
+    "simulation.py": {"main", *WINDOW_MODULES},
+    "screens.py": {"main", "display", "trial", "session", "intro"},
+    "trial.py": {"main", "display", "session", "intro"},
+    "session.py": {"main", "display", "intro"},
+    "intro.py": {"main", "display"},
+    "display.py": {"main", "trial", "session", "intro", "screens"},
+    "check_data.py": {"main", *WINDOW_MODULES},
 }
 FORBIDDEN_CALLS = {("time", "sleep"), ("core", "wait"), ("random", "choice")}
 SINGLE_PLATFORM_MODULES = {"AppKit", "Foundation", "objc", "win32api", "ctypes.windll"}
@@ -136,6 +148,8 @@ def test_real_window_mode_is_full_screen() -> None:
 @pytest.mark.parametrize("name", FORBIDDEN_IMPORTS)
 def test_module_layers(name: str) -> None:
     """Modul neimportuje vyšší vrstvu (čistá logika zůstane bez PsychoPy a bez okna)."""
+    if not (ROOT / name).exists():
+        pytest.skip(f"{name} zatím neexistuje")
     modules = {
         m.split(".")[0] for m in imported_modules(list(ast.walk(parse(ROOT / name))))
     }
@@ -150,7 +164,7 @@ def test_psychopy_imported_after_quieting_log() -> None:
         for i, node in enumerate(body)
         if isinstance(node, ast.Expr) and "setLevel" in ast.unparse(node)
     )
-    loud = {"screens", "pyglet", "psychopy.visual", "psychopy.hardware"}
+    loud = {"pyglet", "psychopy.visual", "psychopy.hardware", *WINDOW_MODULES}
     for i, node in enumerate(body):
         names = imported_modules([node])
         if isinstance(node, ast.ImportFrom) and node.module == "psychopy":
@@ -172,7 +186,7 @@ def test_dpi_awareness_before_window_imports() -> None:
         for i, node in enumerate(body)
         if isinstance(node, ast.Assign) and "enable_dpi_awareness" in ast.unparse(node)
     )
-    window = {"screens", "pyglet", "psychopy.visual", "psychopy.hardware"}
+    window = {"pyglet", "psychopy.visual", "psychopy.hardware", *WINDOW_MODULES}
     for i, node in enumerate(body):
         names = imported_modules([node])
         if isinstance(node, ast.ImportFrom) and node.module == "psychopy":
